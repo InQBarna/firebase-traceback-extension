@@ -15,7 +15,7 @@ Missing a feature or found a bug? Feel free to submit a [bug report or a feature
 ### Installation: Firebase CLI
 
 ```bash
-firebase ext:install jauntybrain/firebase-traceback --project=<your-project-id>
+firebase ext:install inqbarna/traceback --project=<your-project-id>
 ```
 
 ---
