@@ -1,16 +1,16 @@
 # Traceback - Dynamic Links Replacement
 
-**Author**: JauntyBrain ([https://www.jauntybrain.com](https://www.jauntybrain.com))
+**Author**: InQBarna ([http://www.inqbarna.com](https://www.inqbarna.com))
 
-**Install**: Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=jauntybrain/firebase-traceback).
+**Install**: Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/firebase-traceback).
 
 **Description**: Setup an associated domain for your mobile project universal / deep links.
 
-**Reference**: HIGHLY inspired in JauntyBrain's flowlinks extension ([https://www.jauntybrain.com](https://www.jauntybrain.com)). Which was missing some key features for our projects.
+**Reference**: HIGHLY inspired in JauntyBrain's flowlinks extension ([https://flowlinks.app](https://flowlinks.app)). Which was missing some key features for our projects.
 
 ---
 
-Missing a feature or found a bug? Feel free to submit a [bug report or a feature request](https://github.com/InQBarna/traceback-extension/issues). Pull requests are always welcome!
+Missing a feature or found a bug? Feel free to submit a [bug report or a feature request](https://github.com/InQBarna/firebase-traceback-extension/issues). Pull requests are always welcome!
 
 ### Installation: Firebase CLI
 
