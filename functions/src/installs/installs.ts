@@ -1,0 +1,403 @@
+
+import * as functions from 'firebase-functions/v1';
+import { Request, Response } from 'express';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { v4 as uuidv4 } from 'uuid';
+import { Timestamp } from 'firebase-admin/firestore';
+import * as Joi from 'joi'
+import { DeviceFingerprint, DeviceHeuristics, SavedDeviceHeuristics, TraceBackMatchResponse } from './types';
+
+export const deviceFingerprintSchema = Joi.object({
+  appInstallationTime: Joi.number().required(),
+  bundleId: Joi.string().required(),
+  osVersion: Joi.string().required(),
+  sdkVersion: Joi.string().required(),
+  uniqueMatchLinkToCheck: Joi.string().uri().optional(),
+  device: Joi.object({
+    deviceModelName: Joi.string().required(),
+    languageCode: Joi.string().required(),
+    languageCodeFromWebView: Joi.string().optional(),
+    languageCodeRaw: Joi.string().required(),
+    screenResolutionWidth: Joi.number().required(),
+    screenResolutionHeight: Joi.number().required(),
+    timezone: Joi.string().required()
+  }).required()
+})
+
+
+export const private_v0_postinstall_search_link = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res): Promise<void> => {
+
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed')
+      return
+    }
+
+    const { error, value } = deviceFingerprintSchema.validate(req.body)
+    if (error) {
+      res.status(400).json({ error: 'Invalid payload', details: error.details })
+      return
+    }
+
+    const fingerprint = value as DeviceFingerprint
+
+    // For now, just mock a valid response
+
+    /*
+    let request_ip_version: 'IP_V4' | 'IP_V6' | 'UNKNOWN' = 'UNKNOWN'
+    if (ip) {
+      if (ip.includes(':')) {
+        request_ip_version = 'IP_V6'
+      } else if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
+        request_ip_version = 'IP_V4'
+      }
+    }
+      */
+
+    const mock: TraceBackMatchResponse = {
+      deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? 'https://example.com/fallback',
+      match_message: 'Link is uniquely matched for this device.',
+      match_type: 'unique',
+      request_ip_version: 'IP_V4',
+      utm_medium: 'dynamic_link',
+      utm_source: 'firebase'
+    }
+
+    res.status(200).json(mock)
+  })
+
+interface MatchResult {
+  match: SavedDeviceHeuristics
+  score: number
+}
+
+export const private_v1_postinstall_search_link = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res): Promise<void> => {
+    if (req.method !== 'POST') {
+      res.status(405).send('Method Not Allowed')
+      return
+    }
+
+    const { error, value } = deviceFingerprintSchema.validate(req.body)
+    if (error) {
+      res.status(400).json({ error: 'Invalid payload', details: error.details })
+      return
+    }
+
+    const fingerprint = value as DeviceFingerprint
+    const db = getFirestore()
+
+    const collection = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+
+    let foundEntry: SavedDeviceHeuristics | undefined
+    let uniqueMatch: boolean | undefined
+
+    try {
+      if (fingerprint.uniqueMatchLinkToCheck !== undefined) {
+        const snapshot = await collection
+          .where('clipboard', '==', fingerprint.uniqueMatchLinkToCheck)
+          .get()
+
+        if (snapshot.empty) {
+          foundEntry = undefined
+          functions.logger.info('no match found with pasteboard content')
+        } else {
+          uniqueMatch = true
+          let firstDoc = await snapshot.docs[0].data()
+          if (snapshot.docs.length > 1) {
+            functions.logger.warn('Multiple matches found with pasteboard content')
+          } else {
+            functions.logger.info('Multiple matches found with pasteboard content')
+          }
+          foundEntry = firstDoc as SavedDeviceHeuristics
+        }
+
+      } else {
+
+        const snapshot = await collection.get()
+
+        // Optionally: match further by language, timezone, etc.
+        const ip: string | undefined = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ??
+          req.socket.remoteAddress
+        let matches: MatchResult[] = snapshot.docs.map(doc => {
+            const data = doc.data() as SavedDeviceHeuristics
+            const score = findMatchingInstall(
+              fingerprint,
+              ip,
+              req.headers['user-agent'] || undefined,
+              data
+            )
+            return {match: data, score: score} as MatchResult
+          })
+
+        matches = matches.filter(match => { return match.score > 0 })
+        matches = matches.sort((a, b) => b.score - a.score)
+        const bestMatch = matches[0] ?? undefined
+
+        if (bestMatch == undefined || bestMatch.score == 0) {
+          foundEntry = undefined
+          functions.logger.info('no match found with heuristics search')
+        } else {
+          uniqueMatch = false
+          foundEntry = bestMatch.match as SavedDeviceHeuristics
+          if (snapshot.docs.length > 1) {
+            functions.logger.warn('Multiple matches found with heuristics search')
+          } else {
+            functions.logger.info('Match found with heuristics search')
+          }
+        }
+      }
+
+      if (foundEntry !== undefined) {
+        const response: TraceBackMatchResponse = {
+          deep_link_id: foundEntry.clipboard,
+          match_message: (uniqueMatch ? 'Link is uniquely matched for this device.' : 'Fuzzy link with this id'),
+          match_type: uniqueMatch ? 'unique' : 'ambiguous',
+          request_ip_version: 'IP_V4',
+          utm_medium: undefined,
+          utm_source: undefined
+        }
+        res.status(200).json(response)
+
+      } else {
+
+        res.status(200).json({
+          deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? undefined,
+          match_message: 'No matching install found.',
+          match_type: 'none',
+          request_ip_version: 'IP_V4',
+          utm_medium: undefined,
+          utm_source: undefined
+        } satisfies TraceBackMatchResponse)
+      }
+
+    } catch (err) {
+      console.error('Error matching fingerprint:', err)
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  })
+
+  export function findMatchingInstall(
+    fingerprint: DeviceFingerprint,
+    ip: string | undefined,
+    userAgent: string | undefined,
+    entry: SavedDeviceHeuristics
+  ): number {
+    const device = fingerprint.device
+  
+    // 1. Screen resolution must match exactly
+    if (
+      entry.screenWidth !== device.screenResolutionWidth ||
+      entry.screenHeight !== device.screenResolutionHeight
+    ) {
+      return 0
+    }
+  
+    // 2. Timezone must match lowercased
+    if (entry.timezone.toLowerCase() !== device.timezone.toLowerCase()) {
+      return 0
+    }
+  
+    // 3. Language must match normalized (with replacement)
+    const normalizedEntryLang = entry.language.replace('_', '-').toLowerCase()
+    const normalizedDeviceLang = device.languageCode.replace('_', '-').toLowerCase()
+  
+    if (normalizedEntryLang !== normalizedDeviceLang) {
+      return 0
+    }
+  
+    // ✅ Resolution, timezone, language matched
+    let score = 5
+  
+    // Extra point if original casing of timezone matches exactly
+    if (entry.timezone === device.timezone) {
+      score += 1
+    }
+  
+    // Extra point if language matches exactly before replacing
+    if (entry.language === device.languageCode) {
+      score += 1
+    }
+  
+    // IP: must match if both present, otherwise return 0
+    if (entry.ip !== undefined && ip !== undefined) {
+      if (entry.ip !== ip) return 0
+      score += 5
+    }
+  
+    // User Agent: must match if both present, otherwise return 0
+    if (entry.userAgent !== undefined && userAgent !== undefined) {
+      const uaScore = matchWithAppUserAgent(fingerprint.device.deviceModelName, userAgent, entry.userAgent)
+      if (uaScore == 0) {
+        return 0
+      }
+      score += uaScore
+
+      const osVersionScore = osVersionMatches(fingerprint.osVersion, entry.userAgent)
+      if (osVersionScore == 0) {
+        return 0
+      }
+      score += osVersionScore
+    }
+  
+    return score
+  }
+
+  function matchWithAppUserAgent(
+    deviceModel: string,
+    appUserAgent: string,
+    browserUserAgent: string
+  ): number {
+    const normalize = (str: string) =>
+      str.toLowerCase().split(/[\s,;()\/]+/).filter(Boolean)
+  
+    const modelParts = normalize(deviceModel)
+    const appUA = appUserAgent.toLowerCase()
+    const browserUA = browserUserAgent.toLowerCase()
+  
+    let score = 0
+  
+    // deviceModel in browserUA
+    if (modelParts.some(part => browserUA.includes(part))) {
+      score += 2
+    }
+  
+    // deviceModel in appUA
+    if (modelParts.some(part => appUA.includes(part))) {
+      score += 2
+    }
+  
+    // appUA overlaps with browserUA
+    const appTokens = normalize(appUserAgent)
+    const browserTokens = normalize(browserUserAgent)
+    const shared = appTokens.filter(token => browserTokens.includes(token))
+    if (shared.length >= 2) {
+      score += 2
+    } else if (shared.length === 1) {
+      score += 1
+    }
+  
+    return score
+  }
+
+  function osVersionMatches(osVersionFromApp: string, browserUserAgent: string): number {
+    const normalizedAppVersion = osVersionFromApp.replace('.', '_') // 17.4 -> 17_4
+    const major = osVersionFromApp.split('.')[0] // 17
+  
+    const browserUA = browserUserAgent.toLowerCase()
+  
+    if (browserUA.includes(normalizedAppVersion)) {
+      return 2 // full match
+    }
+  
+    if (browserUA.includes(`ios ${major}`) || browserUA.includes(`android ${major}`) || browserUA.includes(`${major}_`)) {
+      return 1 // partial match on major version
+    }
+  
+    return 0
+  }
+  
+
+export const deviceHeuristicsSchema = Joi.object({
+  language: Joi.string().allow(null),
+  languages: Joi.array().items(Joi.string()).allow(null),
+  timezone: Joi.string().allow(null),
+  screenWidth: Joi.number().required(),
+  screenHeight: Joi.number().required(),
+  devicePixelRatio: Joi.number().allow(null),
+  platform: Joi.string().allow(null),
+  userAgent: Joi.string().allow(null),
+  connectionType: Joi.string().allow(null),
+  hardwareConcurrency: Joi.number().allow(null),
+  memory: Joi.number().allow(null),
+  colorDepth: Joi.number().allow(null),
+  clipboard: Joi.string().allow(null)
+})
+
+export const private_v1_preinstall_save_link = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Validate with Joi
+    const { error, value } = deviceHeuristicsSchema.validate(req.body)
+    if (error) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid payload',
+        details: error.details
+      })
+      return
+    }
+
+    const heuristics: DeviceHeuristics = value;
+    const installId: string = uuidv4();
+    const ip: string | undefined = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ??
+      req.socket.remoteAddress
+
+    let payload: SavedDeviceHeuristics
+    if (undefined !== ip) {
+      payload = {
+        ...heuristics,
+        createdAt: Timestamp.now(),
+        ip: ip
+      };
+    } else {
+      payload = {
+        ...heuristics,
+        createdAt: Timestamp.now()
+      };
+    }
+
+    const db = getFirestore();
+    await db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+      .doc(installId)
+      .set(payload);
+
+    await oldInstallsMaintenance(db);
+
+    res.status(200).json({ success: true, installId });
+  } catch (err) {
+    functions.logger.error('Error saving device heuristics:', JSON.stringify({error: err}));
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+}
+
+// Installations cleanup
+
+let cleanupCount = 0
+export async function oldInstallsMaintenance(db: Firestore): Promise<void> {
+  cleanupCount++
+  if (cleanupCount % 10 !== 0) return // only run every 10th call
+  try {
+    await deleteOldInstalls(30, db);
+  } catch (err) {
+    functions.logger.error('Failed to delete old installs during this call', JSON.stringify({error: err}));
+  }
+}
+
+export async function deleteOldInstalls(minutes: number, db: Firestore): Promise<void> {
+
+  const snapshot = await db
+    .collection('_traceback')
+    .doc('installs')
+    .collection('records')
+    .where('createdAt', '<', Timestamp.fromMillis(Date.now() - minutes * 60 * 1000))
+    .get()
+
+  if (snapshot.empty) {
+     return
+  }
+
+  const batch = db.batch()
+  snapshot.docs.forEach(doc => batch.delete(doc.ref))
+  await batch.commit()
+}

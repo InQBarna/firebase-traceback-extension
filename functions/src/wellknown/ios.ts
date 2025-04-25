@@ -1,0 +1,29 @@
+import { Request, Response } from 'express';
+
+export const apple_app_size_association = async function (
+  req: Request,
+  res: Response,
+  iosTeamID: string,
+  iosBundleID: string
+) {
+    const applicationID = `${iosTeamID}.${iosBundleID}`;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.write(
+      JSON.stringify({
+        applinks: {
+          apps: [],
+          details: [
+            {
+              appID: applicationID,
+              paths: ['*'],
+            },
+          ],
+        },
+        webcredentials: {
+          apps: [applicationID],
+        },
+      })
+    );
+    res.end();
+  }

@@ -1,0 +1,205 @@
+name: firebase-traceback
+version: 0.0.1
+specVersion: v1beta
+
+displayName: TraceBack - Dynamic Links Replacement
+
+author:
+  authorName: InQBarna
+  url: https://github.com/InQBarna/
+
+description: A replacement for dynamic links
+
+icon: icon.png
+
+license: Apache-2.0
+
+tags: [marketing, utilities]
+
+sourceUrl: https://github.com/InQBarna/firebase-traceback-extension/tree/main
+releaseNotesUrl: https://github.com/InQBarna/firebase-traceback-extension/tree/main/CHANGELOG.md
+
+billingRequired: true
+
+apis:
+  - apiName: firebasehosting.googleapis.com
+    reason: Install script ensures a hosting is created as an assocaited domain.
+  - apiName: firestore.googleapis.com
+    reason: Save campaign links to firestore.
+
+roles:
+  - role: firebasehosting.admin
+    reason: Install script ensures a hosting is created as an assocaited domain.
+  - role: datastore.user
+    reason: Save campaign links to firestore.
+
+resources:
+  - name: initialize
+    type: firebaseextensions.v1beta.function
+    description: >-
+      Creates a hosting as associated fomain.
+    properties:
+      location: ${LOCATION}
+      taskQueueTrigger: {}
+      runtime: 'nodejs20'
+
+  - name: dynamichostingcontent
+    type: firebaseextensions.v1beta.function
+    description: >-
+      Serve dynamic content for associated domain endpoints.
+    properties:
+      location: ${LOCATION}
+      httpsTrigger: {}
+      runtime: 'nodejs20'
+      minInstances: ${MIN_INSTANCES}
+
+  - name: doctor
+    type: firebaseextensions.v1beta.function
+    description: >-
+      Endpoint to test extension installation. Should be used only by developers
+    properties:
+      location: ${LOCATION}
+      httpsTrigger: {}
+      runtime: 'nodejs20'
+      minInstances: ${MIN_INSTANCES}
+
+lifecycleEvents:
+  onInstall:
+    function: initialize
+    processingMessage: Initializing the extension... May take some minutes to complete.
+
+params:
+  - param: LOCATION
+    label: Cloud Functions location
+    description: >-
+      Location of the main service. See [location selection
+      guide](https://firebase.google.com/docs/functions/locations).
+    type: select
+    options:
+      - label: Iowa (us-central1)
+        value: us-central1
+      - label: South Carolina (us-east1)
+        value: us-east1
+      - label: Northern Virginia (us-east4)
+        value: us-east4
+      - label: Los Angeles (us-west2)
+        value: us-west2
+      - label: Salt Lake City (us-west3)
+        value: us-west3
+      - label: Las Vegas (us-west4)
+        value: us-west4
+      - label: Warsaw (europe-central2)
+        value: europe-central2
+      - label: Belgium (europe-west1)
+        value: europe-west1
+      - label: London (europe-west2)
+        value: europe-west2
+      - label: Frankfurt (europe-west3)
+        value: europe-west3
+      - label: Zurich (europe-west6)
+        value: europe-west6
+      - label: Hong Kong (asia-east2)
+        value: asia-east2
+      - label: Tokyo (asia-northeast1)
+        value: asia-northeast1
+      - label: Osaka (asia-northeast2)
+        value: asia-northeast2
+      - label: Seoul (asia-northeast3)
+        value: asia-northeast3
+      - label: Mumbai (asia-south1)
+        value: asia-south1
+      - label: Jakarta (asia-southeast2)
+        value: asia-southeast2
+      - label: Montreal (northamerica-northeast1)
+        value: northamerica-northeast1
+      - label: Sao Paulo (southamerica-east1)
+        value: southamerica-east1
+      - label: Sydney (australia-southeast1)
+        value: australia-southeast1
+    default: us-central1
+    required: true
+    immutable: true
+
+  - param: IOS_BUNDLE_ID
+    label: Bundle ID of your iOS app
+    description: >
+      Bundle ID of your iOS app.
+    type: string
+    example: com.inqbarna.familymealplanner
+    validationRegex: ^([0-9a-zA-Z_.-]*)$
+    validationErrorMessage: Invalid bundle ID format.
+    required: true
+
+  - param: IOS_TEAM_ID
+    label: Team ID of your iOS app
+    description: >
+      Team ID from apple's appstoreconnect / Developer portal.
+    type: string
+    example: 8X3V795LG6
+    validationRegex: ^([0-9A-Z]*)$
+    validationErrorMessage: Invalid team ID format.
+    required: true
+
+  - param: ANDROID_BUNDLE_ID
+    label: Bundle ID of your Android app
+    description: >
+      Bundle ID of your Android app
+    type: string
+    example: com.inqbarna.familymealplanner
+    validationRegex: ^([0-9a-zA-Z_.-]*)$
+    validationErrorMessage: Invalid bundle ID format.
+    required: true
+
+  - param: ANDROID_SHA
+    label: Android SHA256 Fingerprint
+    description: >
+      Android SHA256 Fingerprint.
+    type: string
+    example: FF:2A:CF:7B:DD:CC:F1:03:3E:E8:B2:27:7C:A2:E3:3C:DE:13:DB:AC:8E:EB:3A:B9:72:A1:0E:26:8A:F5:EC:AF
+    required: false
+
+  - param: ANDROID_SCHEME
+    label: Android Scheme Attribute
+    description: >
+      Optional parameter to use Android's intent link to app's content. See [custom
+      scheme](https://developer.android.com/training/app-links/deep-linking).
+    type: string
+    example: fmp://
+    required: false
+
+  - param: MIN_INSTANCES
+    label: Mininum Cloud Function Instances
+    description: >
+      Set this parameter to `1` if you would like to minimize the [cold start
+      time](https://cloud.google.com/functions/docs/configuring/min-instances).
+      This will allow the links to load significantly faster, but **will
+      increase Firebase costs**.
+    type: string
+    validationRegex: ^([0-9]*)$
+    validationErrorMessage: Must be a positive integer
+    default: 0
+    required: true
+
+  - param: DOMAIN
+    label: Custom domain name
+    description: >
+      The domain name that will serve universal links. If left empty, 
+      https://${PROJECT_ID}-traceback.web.app will be used.
+      Indicate a custom one if needed
+    type: string
+    validationRegex: ^([0-9a-zA-Z_.-]*)$
+    validationErrorMessage: Invalid domain format.
+    required: false
+    immutable: true
+
+  - param: DARK_LAUNCHING_FB_DOMAIN
+    label: Configure to dark launch an existing firebase dynamic links domain
+    description: >
+      The domain name that currenly serves your firebase dynamic links. 
+      Leave it empty, only fill it to enable dark launch of traceback 
+      and using existing firebase dynamic links
+    type: string
+    validationRegex: ^([0-9a-zA-Z_.-]*)\.page\.link$
+    validationErrorMessage: Invalid domain format, should be XXX.page.link.
+    required: false
+    immutable: true

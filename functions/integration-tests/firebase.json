@@ -1,0 +1,41 @@
+{
+  "functions": {
+    "source": "functions"
+  },
+  "emulators": {
+    "functions": {
+      "port": 5001,
+      "host": "127.0.0.1"
+    },
+    "ui": {
+      "enabled": true
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "hosting": {
+      "port": 5002,
+      "host": "127.0.0.1"
+    },
+    "singleProjectMode": true
+  },
+  "extensions": {
+    "firebase-traceback": "../../"
+  },
+  "hosting": {
+    "public": "public",
+    "appAssociation": "NONE",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "function": "ext-firebase-traceback-dynamichostingcontent",
+        "region": "europe-west1"
+      }
+    ]
+  }
+}

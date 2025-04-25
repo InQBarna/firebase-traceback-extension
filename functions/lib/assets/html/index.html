@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="white" />
+    <link rel="icon" type="image/png" href="" />
+    <link rel="mask-icon" href="" color="#ffffff" />
+    <link rel="apple-touch-icon" href="" />
+
+    <title>{{title}}</title>
+    <meta name="description" content="{{description}}" />
+    <meta property="og:title" content="{{title}}" />
+    <meta property="og:description" content="{{description}}" />
+    <meta property="og:image" content="{{thumbnail}}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+
+  </head>
+
+  <body>
+    <div>
+      <div>
+        <div>
+          <span>
+            <img src="//lh3.googleusercontent.com/QCk7U7SivAKX9UQ_rIcz08cJARxf2eEpjFInqL2fedqOYXmD9YDSUhTyvADt-rM__44M_nzI" aria-hidden="true" role="none">
+            {{app_name}}
+          </span>
+          <span>
+            {{app_description}}
+          </span>
+        </div>
+        <div>
+          <div>
+            <input id="clipboardCheckbox" type="checkbox" checked="">
+            <label for="clipboardCheckbox">
+              Save my place in the app. A link will be copied to continue to this page.
+            </label>
+          </div>
+          <div>
+            <div id="installLink">
+            OPEN
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <script type="module">
+
+    function copyToClipboard(urlWithHeuristics) {
+      const input = document.createElement('input');
+      input.value = urlWithHeuristics;
+      input.style.position = 'fixed';
+      input.style.opacity = '0.0001';
+      document.body.appendChild(input);
+      input.focus();
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+
+    function generateURLWithHeuristics(heuristics) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('_lang', heuristics.language);
+      url.searchParams.set('_langs', heuristics.languages);
+      url.searchParams.set('_tz', heuristics.timezone);
+      url.searchParams.set('_res', `${heuristics.screenWidth}x${heuristics.screenHeight}`);
+      url.searchParams.set('_dpr', heuristics.devicePixelRatio);
+      url.searchParams.set('_plt', heuristics.platform);
+      // url.searchParams.set('_ua', heuristics.userAgent);
+      return url.toString()
+    }
+
+    const heuristics = {
+      language: navigator.language || null,
+      languages: navigator.languages || null,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      devicePixelRatio: window.devicePixelRatio || null,
+      platform: navigator.platform || null,
+      userAgent: navigator.userAgent || null,
+      connectionType: navigator.connection?.effectiveType || null,
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      memory: navigator.deviceMemory || null,
+      colorDepth: window.screen.colorDepth || null
+    };
+
+    const urlWithHeuristics = generateURLWithHeuristics(heuristics);
+    // document.getElementById("installLink").href = urlWithHeuristics;
+    const heuristicsWithClipboard = {
+      ...heuristics,
+      clipboard: urlWithHeuristics
+    };
+
+    async function darkLaunch() {
+      await fetch('/v1_preinstall_save_link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(heuristicsWithClipboard)
+      });
+      // example when {{darkLaunchDomain}} is fmppre.page.link
+      // https://fmppre.page.link/?link=https://familymealplanner.inqbarna.com/welcome
+      // isi=1620301321
+      // ibi=com.inqbarna.familymealplan
+      // cid=5499816327415635564
+      // _osl=https://fmppre.page.link/welcome
+      // _icp=1
+
+      const currentDomain = window.location.host;
+      const currentPort = window.location.port;
+      const currentURL = window.location.href;
+      const newLocation = currentURL
+        .replace('https://' + currentDomain, 'https://' +'{{darkLaunchDomain}}')
+        .replace('http://' + currentDomain, 'https://' +'{{darkLaunchDomain}}');
+
+      if (currentPort.length > 0) {
+        const newLocationWithoutPortForLocalDebug = newLocation
+          .replace('{{darkLaunchDomain}}:' + currentPort + '/', '');
+        window.location.href = newLocationWithoutPortForLocalDebug;
+        return;
+      }
+      window.location.href = newLocation;
+    }
+
+    debugger
+
+    if ('{{darkLaunchDomain}}' !== '') {
+      await darkLaunch();
+    }
+
+    document.getElementById("installLink").addEventListener("click", async (e) => {
+
+      // example: http://127.0.0.1:5002/xxx?_lang=en-US&_langs=en-US&_tz=Europe%2FMadrid&_res=1710x1107&_dpr=2&_plt=MacIntel
+
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const checkbox = document.getElementById("clipboardCheckbox");
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      if (checkbox?.checked) {
+        copyToClipboard(urlWithHeuristics);
+      }
+
+      await fetch('/v1_preinstall_save_link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(heuristicsWithClipboard)
+      });
+
+      if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
+        window.location.href = '{{followLink}}';
+      } else if (isIOS) {
+        window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
+      } else if (isAndroid) {
+        if ('{{androidScheme}}' != '') {
+          const fallbackUrl = encodeURIComponent(
+            'https://play.google.com/store/apps/details?id={{androidBundleID}}',
+          );
+          window.location.href = `intent:#Intent;scheme={{androidScheme}};package={{androidBundleID}};S.browser_fallback_url=${fallbackUrl};end`;
+        } else {
+          window.location.href =
+            'https://play.google.com/store/apps/details?id={{androidBundleID}}';
+        }
+      } else {
+        console.log('Not iOs or android detected')
+      }
+    });
+  </script>
+  
+  </html>

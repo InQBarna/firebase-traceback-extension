@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "iqbdemocms"
+  },
+  "targets": {},
+  "etags": {
+    "iqbdemocms": {
+      "extensionInstances": {
+        "firebase-traceback": "a0cd015213ea9f6b0b9a69b623ae06e42cf431ad4d4939590ffa8d33a37ec48d"
+      }
+    }
+  },
+  "dataconnectEmulatorConfig": {}
+}
