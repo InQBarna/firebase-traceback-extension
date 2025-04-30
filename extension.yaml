@@ -202,4 +202,4 @@ params:
     validationRegex: ^([0-9a-zA-Z_.-]*)\.page\.link$
     validationErrorMessage: Invalid domain format, should be XXX.page.link.
     required: false
-    immutable: true
+    immutable: false
