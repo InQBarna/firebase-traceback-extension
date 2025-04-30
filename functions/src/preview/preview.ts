@@ -46,9 +46,6 @@ export const link_preview = async function (
     return res.status(200).send(source);
 };
 
-
-
-
 interface LinkInfo {
   title: string;
   description: string;

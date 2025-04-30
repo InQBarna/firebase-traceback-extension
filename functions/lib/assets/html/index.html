@@ -247,12 +247,10 @@
 
       // Re-encode and update the outer URL
       let newUrl = url;
-      newUrl.searchParams.set("link", encodeURIComponent(nestedUrl.toString()));
+      newUrl.searchParams.set("link", nestedUrl.toString());
 
       return newUrl;
     }
-
-    debugger
 
     if ('{{darkLaunchDomain}}' !== '') {
       await darkLaunch();
