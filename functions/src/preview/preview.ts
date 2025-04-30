@@ -47,13 +47,15 @@ export const link_preview = async function (
 };
 
 
+
+
 interface LinkInfo {
   title: string;
   description: string;
   image: string;
   followLink?: URL;
   expires: number;
-  appStoreID?: string;
+  appStoreInfo?: AppStoreInfo;
 }
 
 async function getPreviewLinkResponse(
@@ -74,7 +76,7 @@ async function getUnknownLinkResponse(
 ): Promise<string> {
 
   // Get iOS AppStore appID
-  let appStoreID: string = (await getAppStoreID(config.iosBundleID, 'es')) || '';
+  let appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(config.iosBundleID, 'es');
 
   return getDynamicLinkHTMLResponse(
     scheme,
@@ -83,9 +85,9 @@ async function getUnknownLinkResponse(
       title: '',
       description: 'app store description',
       image: '',
-      followLink: new URL(url),
+      followLink: new URL('about:blank'),
       expires: (new Date()).getTime(),
-      appStoreID: appStoreID
+      appStoreInfo: appStoreInfo
     },
     config
   );
@@ -110,7 +112,7 @@ async function getFirestoreDynamicLinkInfo(
 
   // Get iOS AppStore appID
   // TODO: static var with appStoreID
-  let appStoreID: string | undefined = (await getAppStoreID(config.iosBundleID, 'es')) || '';
+  let appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(config.iosBundleID, 'es');
 
   return {
     title: title,
@@ -118,7 +120,7 @@ async function getFirestoreDynamicLinkInfo(
     image: image,
     followLink: new URL(followLink),
     expires: expiresNumber,
-    appStoreID: appStoreID
+    appStoreInfo: appStoreInfo
   }
 }
 
@@ -135,32 +137,38 @@ async function getDynamicLinkHTMLResponse(
     .readFileSync(templatePath, { encoding: 'utf-8' })
     .replaceAll('{{title}}', linkInfo.title)
     .replaceAll('{{description}}', linkInfo.description)
-    .replaceAll('{{appStoreID}}', linkInfo.appStoreID ?? '')
+    .replaceAll('{{appStoreID}}', linkInfo.appStoreInfo?.trackId ?? '')
     .replaceAll('{{androidBundleID}}', config.androidBundleID)
     .replaceAll('{{androidScheme}}', (config.androidScheme ?? '').toString())
     .replaceAll('{{followLink}}', linkInfo.followLink?.toString() ?? '')
     .replaceAll('{{thumbnail}}', linkInfo.image)
     .replaceAll('{{darkLaunchDomain}}', config.darkLaunchDomain ?? '')
+    .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
+    .replaceAll('{{app_description}}', linkInfo.appStoreInfo?.description ?? '')
+}
+
+interface AppStoreInfo {
+  trackName: string
+  description: string
+  trackId: string
 }
 
 // Get AppStore numeric ID
 // TODO: static save of appstore link
-async function getAppStoreID(bundleId: string, country: string): Promise<string | null> {
+async function getAppStoreID(bundleId: string, country: string): Promise<AppStoreInfo | undefined> {
   try {
     const response = await axios.get(
       `http://itunes.apple.com/lookup?bundleId=${bundleId}&country=${country}`,
     );
 
     if (response.data && response.data.results.length > 0) {
-      const appInfo = response.data.results[0];
-      if (appInfo.trackId) {
-        return appInfo.trackId;
-      }
+      const appInfo: AppStoreInfo = response.data.results[0] as AppStoreInfo;
+      return appInfo
     }
 
-    return null; // App Store URL not found in the response
+    return undefined; // App Store URL not found in the response
   } catch (error) {
     // functions.logger.error('Error fetching data from iTunes API:', error);
-    return null;
+    return undefined;
   }
 }

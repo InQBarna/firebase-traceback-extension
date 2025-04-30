@@ -104,8 +104,20 @@ export const private_v1_postinstall_search_link = functions
           .get()
 
         if (snapshot.empty) {
-          foundEntry = undefined
-          functions.logger.info('no match found with pasteboard content')
+          const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(fingerprint.uniqueMatchLinkToCheck);
+          if (tracebackIdForDarkLaunch === undefined) {
+            foundEntry = undefined
+            functions.logger.info('no match found with pasteboard content')
+          } else {
+            const docRef = collection.doc(tracebackIdForDarkLaunch);
+            const tidSnapshot = await docRef.get();
+            if (!tidSnapshot.exists) {
+              foundEntry = undefined
+              functions.logger.info('no match found with pasteboard content')
+            } else {
+              foundEntry = tidSnapshot.data() as SavedDeviceHeuristics;
+            }
+          }
         } else {
           uniqueMatch = true
           let firstDoc = await snapshot.docs[0].data()
@@ -181,6 +193,26 @@ export const private_v1_postinstall_search_link = functions
       res.status(500).json({ error: 'Internal Server Error' })
     }
   })
+
+  function extractTracebackIdFromDynamicLink(dynamicLinkUrl: string): string | undefined {
+    try {
+      const outerUrl = new URL(dynamicLinkUrl);
+      const encodedLinkParam = outerUrl.searchParams.get('link');
+      if (!encodedLinkParam) {
+         return undefined;
+      }
+  
+      // If the "link" parameter is itself a URL, it may be double-encoded
+      const decodedOnce = decodeURIComponent(encodedLinkParam);
+      const nestedUrl = new URL(decodedOnce);
+  
+      const tracebackId = nestedUrl.searchParams.get('_tracebackid');
+      return tracebackId || undefined;
+    } catch (err) {
+      // console.error('Failed to extract _tracebackid:', err);
+      return undefined;
+    }
+  }  
 
   export function findMatchingInstall(
     fingerprint: DeviceFingerprint,
