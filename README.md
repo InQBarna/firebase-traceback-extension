@@ -1,7 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/InQBarna/firebase-traceback-extension/refs/heads/main/icon.png">
-    <img width="200px">
+    <img width="200px" src="https://raw.githubusercontent.com/InQBarna/firebase-traceback-extension/refs/heads/main/icon.png" alt="Project icon">
   </picture>
 </p>
 
