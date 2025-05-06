@@ -13,6 +13,7 @@ export const deviceFingerprintSchema = Joi.object({
   osVersion: Joi.string().required(),
   sdkVersion: Joi.string().required(),
   uniqueMatchLinkToCheck: Joi.string().uri().optional(),
+  darkLaunchDetectedLink: Joi.string().uri().optional(),
   device: Joi.object({
     deviceModelName: Joi.string().required(),
     languageCode: Joi.string().required(),
@@ -24,52 +25,33 @@ export const deviceFingerprintSchema = Joi.object({
   }).required()
 })
 
-
-export const private_v0_postinstall_search_link = functions
-  .region('europe-west1')
-  .https.onRequest(async (req, res): Promise<void> => {
-
-    if (req.method !== 'POST') {
-      res.status(405).send('Method Not Allowed')
-      return
-    }
-
-    const { error, value } = deviceFingerprintSchema.validate(req.body)
-    if (error) {
-      res.status(400).json({ error: 'Invalid payload', details: error.details })
-      return
-    }
-
-    const fingerprint = value as DeviceFingerprint
-
-    // For now, just mock a valid response
-
-    /*
-    let request_ip_version: 'IP_V4' | 'IP_V6' | 'UNKNOWN' = 'UNKNOWN'
-    if (ip) {
-      if (ip.includes(':')) {
-        request_ip_version = 'IP_V6'
-      } else if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
-        request_ip_version = 'IP_V4'
-      }
-    }
-      */
-
-    const mock: TraceBackMatchResponse = {
-      deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? 'https://example.com/fallback',
-      match_message: 'Link is uniquely matched for this device.',
-      match_type: 'unique',
-      request_ip_version: 'IP_V4',
-      utm_medium: 'dynamic_link',
-      utm_source: 'firebase'
-    }
-
-    res.status(200).json(mock)
-  })
-
 interface MatchResult {
   match: SavedDeviceHeuristics
   score: number
+}
+
+enum AnalyticsType {
+  ERROR = 'ERROR',
+  PASTEBOARD_MULTIPLE_MATCHES = 'PASTEBOARD_MULTIPLE_MATCHES',
+  PASTEBOARD_NOT_FOUND = 'PASTEBOARD_NOT_FOUND',
+  HEURISTICS_NOT_FOUND = 'HEURISTICS_NOT_FOUND',
+  HEURISTICS_MULTIPLE_MATCHES = 'HEURISTICS_MULTIPLE_MATCHES',
+  DARK_LAUNCH_MATCH = 'DARK_LAUNCH_MATCH',
+  DARK_LAUNCH_MISMATCH = 'DARK_LAUNCH_MISMATCH',
+  DEBUG_HEURISTICS_SUCCESS = 'DEBUG_HEURISTICS_SUCCESS',
+  DEBUG_HEURISTICS_FAILURE = 'DEBUG_HEURISTICS_FAILURE',
+}
+
+interface AnalyticsMessage {
+  type: AnalyticsType,
+  message: string,
+  debugObject: any | undefined
+}
+
+interface PostInstallResult {
+  foundEntry: SavedDeviceHeuristics | undefined
+  uniqueMatch: boolean | undefined
+  analytics: AnalyticsMessage[]
 }
 
 export const private_v1_postinstall_search_link = functions
@@ -86,90 +68,56 @@ export const private_v1_postinstall_search_link = functions
       return
     }
 
-    const fingerprint = value as DeviceFingerprint
-    const db = getFirestore()
-
-    const collection = db
-      .collection('_traceback_')
-      .doc('installs')
-      .collection('records')
-
-    let foundEntry: SavedDeviceHeuristics | undefined
-    let uniqueMatch: boolean | undefined
-
     try {
-      if (fingerprint.uniqueMatchLinkToCheck !== undefined) {
-        const snapshot = await collection
-          .where('clipboard', '==', fingerprint.uniqueMatchLinkToCheck)
-          .get()
 
-        if (snapshot.empty) {
-          const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(fingerprint.uniqueMatchLinkToCheck);
-          if (tracebackIdForDarkLaunch === undefined) {
-            foundEntry = undefined
-            functions.logger.info('no match found with pasteboard content')
-          } else {
-            const docRef = collection.doc(tracebackIdForDarkLaunch);
-            const tidSnapshot = await docRef.get();
-            if (!tidSnapshot.exists) {
-              foundEntry = undefined
-              functions.logger.info('no match found with pasteboard content')
-            } else {
-              foundEntry = tidSnapshot.data() as SavedDeviceHeuristics;
-            }
-          }
-        } else {
-          uniqueMatch = true
-          let firstDoc = await snapshot.docs[0].data()
-          if (snapshot.docs.length > 1) {
-            functions.logger.warn('Multiple matches found with pasteboard content')
-          } else {
-            functions.logger.info('Multiple matches found with pasteboard content')
-          }
-          foundEntry = firstDoc as SavedDeviceHeuristics
-        }
+      // 1.- SEARCH
+      const fingerprint = value as DeviceFingerprint
+      const ip: string | undefined = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ??
+        req.socket.remoteAddress
+      const userAgent = req.headers['user-agent'] || undefined
+      const darkLaunchDetectedLink = fingerprint.darkLaunchDetectedLink;
+      const result = await searchPostInstall(fingerprint, ip, userAgent, darkLaunchDetectedLink);
 
-      } else {
-
-        const snapshot = await collection.get()
-
-        // Optionally: match further by language, timezone, etc.
-        const ip: string | undefined = req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ??
-          req.socket.remoteAddress
-        let matches: MatchResult[] = snapshot.docs.map(doc => {
-            const data = doc.data() as SavedDeviceHeuristics
-            const score = findMatchingInstall(
-              fingerprint,
-              ip,
-              req.headers['user-agent'] || undefined,
-              data
-            )
-            return {match: data, score: score} as MatchResult
-          })
-
-        matches = matches.filter(match => { return match.score > 0 })
-        matches = matches.sort((a, b) => b.score - a.score)
-        const bestMatch = matches[0] ?? undefined
-
-        if (bestMatch == undefined || bestMatch.score == 0) {
-          foundEntry = undefined
-          functions.logger.info('no match found with heuristics search')
-        } else {
-          uniqueMatch = false
-          foundEntry = bestMatch.match as SavedDeviceHeuristics
-          if (snapshot.docs.length > 1) {
-            functions.logger.warn('Multiple matches found with heuristics search')
-          } else {
-            functions.logger.info('Match found with heuristics search')
-          }
+      // 2.- ANALYTICS
+      for (let index = 0; index < result.analytics.length; index++) {
+        const element = result.analytics[index];
+        switch (element.type) {
+          case AnalyticsType.ERROR:
+            functions.logger.error(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.HEURISTICS_MULTIPLE_MATCHES:
+            functions.logger.warn(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.HEURISTICS_NOT_FOUND:
+            functions.logger.info(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.PASTEBOARD_MULTIPLE_MATCHES:
+            functions.logger.warn(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.PASTEBOARD_NOT_FOUND:
+            functions.logger.warn(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.DARK_LAUNCH_MATCH:
+            functions.logger.info(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.DARK_LAUNCH_MISMATCH:
+            functions.logger.error(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.DEBUG_HEURISTICS_FAILURE:
+            functions.logger.warn(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
+          case AnalyticsType.DEBUG_HEURISTICS_SUCCESS:
+            functions.logger.info(element.type.toString() + ": " + element.message, JSON.stringify({debugObject: element.debugObject}));
+            break;
         }
       }
 
-      if (foundEntry !== undefined) {
+      // 3.- RESPONSE
+      if (result.foundEntry !== undefined) {
         const response: TraceBackMatchResponse = {
-          deep_link_id: foundEntry.clipboard,
-          match_message: (uniqueMatch ? 'Link is uniquely matched for this device.' : 'Fuzzy link with this id'),
-          match_type: uniqueMatch ? 'unique' : 'ambiguous',
+          deep_link_id: result.foundEntry.clipboard,
+          match_message: (result.uniqueMatch ? 'Link is uniquely matched for this device.' : 'Fuzzy link with this id'),
+          match_type: result.uniqueMatch ? 'unique' : 'ambiguous',
           request_ip_version: 'IP_V4',
           utm_medium: undefined,
           utm_source: undefined
@@ -193,6 +141,185 @@ export const private_v1_postinstall_search_link = functions
       res.status(500).json({ error: 'Internal Server Error' })
     }
   })
+
+  async function searchPostInstall(
+    fingerprint: DeviceFingerprint,
+    ip: string | undefined,
+    userAgent: string | undefined,
+    darkLaunchDetectedLink: string | undefined
+  ): Promise<PostInstallResult> {
+
+    let result: PostInstallResult;
+
+    // let isNotFoundFBDL = darkLaunchDetectedLink !== undefined && darkLaunchDetectedLink.indexOf('No%20pre%2Dinstall%20link%20matched%20for%20this%20device') !== -1;
+
+    const db = getFirestore()
+    const collection = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+
+    if (fingerprint.uniqueMatchLinkToCheck !== undefined) {
+      result = await searchByClipboardContent(collection, fingerprint, fingerprint.uniqueMatchLinkToCheck);
+
+      let heuristicsSearch = await searchByHeuristics(collection, fingerprint, ip, userAgent);
+      if (heuristicsSearch.foundEntry !== result.foundEntry) {
+        result.analytics.push({
+          type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
+          message: 'heuristisc whould have returned different result than unique search',
+          debugObject: {unique: result.foundEntry, heuristics: heuristicsSearch.foundEntry}
+        })
+      } else {
+        result.analytics.push({
+          type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
+          message: 'heuristisc whould have returned the same result than unique search, hurray!',
+          debugObject: undefined
+        })
+      }
+    } else {
+      result = await searchByHeuristics(collection, fingerprint, ip, userAgent);
+    }
+
+    if (darkLaunchDetectedLink !== undefined) {
+      if (darkLaunchDetectedLink !== result.foundEntry?.clipboard) {
+        result.analytics.push({
+          type: AnalyticsType.DARK_LAUNCH_MISMATCH,
+          message: 'matched dark launch',
+          debugObject: darkLaunchDetectedLink
+        })
+      } else {
+        result.analytics.push({
+          type: AnalyticsType.DARK_LAUNCH_MATCH,
+          message: 'dark launch mismatch',
+          debugObject: { darkLaunch: darkLaunchDetectedLink, traceback: result.foundEntry.clipboard }
+        })
+      }
+    }
+  
+    return result;
+  }
+
+async function searchByHeuristics(
+  collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>,
+  fingerprint: DeviceFingerprint,
+  ip: string | undefined,
+  userAgent: string | undefined
+): Promise<PostInstallResult> {
+
+  const snapshot = await collection.get();
+
+  // Optionally: match further by language, timezone, etc.
+  let matches: MatchResult[] = snapshot.docs.map(doc => {
+    const data = doc.data() as SavedDeviceHeuristics;
+    const score = findMatchingInstall(
+      fingerprint,
+      ip,
+      userAgent,
+      data
+    );
+    return { match: data, score: score } as MatchResult;
+  });
+
+  matches = matches.filter(match => { return match.score > 0; });
+  matches = matches.sort((a, b) => b.score - a.score);
+  const bestMatch = matches[0] ?? undefined;
+
+  if (bestMatch == undefined || bestMatch.score == 0) {
+    return {
+      foundEntry: undefined,
+      uniqueMatch: false,
+      analytics: [{
+        type: AnalyticsType.HEURISTICS_NOT_FOUND,
+        message: 'no match found with heuristics search',
+        debugObject: {
+          fingerprint: fingerprint,
+          ip: ip,
+          userAgent: userAgent
+        }
+      }]
+    };
+  } else {
+    let analytics: AnalyticsMessage[] =  []
+    if (matches.length > 1) {
+      analytics.push({
+        type: AnalyticsType.HEURISTICS_MULTIPLE_MATCHES,
+        message: 'Multiple heuristics matches',
+        debugObject: {
+          fingerprint: fingerprint,
+          ip: ip,
+          userAgent: userAgent,
+          matches: matches
+        }
+      });
+    }
+    return {
+      foundEntry: bestMatch.match as SavedDeviceHeuristics,
+      uniqueMatch: false,
+      analytics: analytics
+    }
+  }
+}
+
+async function searchByClipboardContent(
+  collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>,
+  fingerprint: DeviceFingerprint,
+  uniqueMatchLinkToCheck: string
+): Promise<PostInstallResult> {
+
+  const snapshot = await collection
+    .where('clipboard', '==', fingerprint.uniqueMatchLinkToCheck)
+    .get();
+
+  if (snapshot.empty) {
+    const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(uniqueMatchLinkToCheck);
+    if (tracebackIdForDarkLaunch === undefined) {
+      return {
+        foundEntry: undefined,
+        uniqueMatch: false,
+        analytics: [{
+          type: AnalyticsType.PASTEBOARD_NOT_FOUND,
+          message: 'no match found with pasteboard content, and could not find _tracebackid in url',
+          debugObject: fingerprint.uniqueMatchLinkToCheck
+        }]
+      };
+    } else {
+      const docRef = collection.doc(tracebackIdForDarkLaunch);
+      const tidSnapshot = await docRef.get();
+      if (!tidSnapshot.exists) {
+        return {
+          foundEntry: undefined,
+          uniqueMatch: false,
+          analytics: [{
+          type: AnalyticsType.PASTEBOARD_NOT_FOUND,
+          message: 'no match found with pasteboard content neither by using dark launch _tracebackid',
+          debugObject: fingerprint.uniqueMatchLinkToCheck
+          }]
+        };
+      } else {
+        return {
+          foundEntry: tidSnapshot.data() as SavedDeviceHeuristics,
+          uniqueMatch: true,
+          analytics: []
+        };
+      }
+    }
+  } else {
+    let firstDoc = await snapshot.docs[0].data();
+    let analytics: AnalyticsMessage[] = []
+    if (snapshot.docs.length > 1) {
+      analytics.push({
+        type: AnalyticsType.PASTEBOARD_MULTIPLE_MATCHES,
+        message: 'Multiple matches found with pasteboard content',
+        debugObject: fingerprint.uniqueMatchLinkToCheck
+      });
+    }
+    return {
+      foundEntry: firstDoc as SavedDeviceHeuristics,
+      uniqueMatch: true,
+      analytics: analytics
+    };
+  }
+}
 
   function extractTracebackIdFromDynamicLink(dynamicLinkUrl: string): string | undefined {
     try {

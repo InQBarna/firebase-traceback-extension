@@ -7,6 +7,7 @@ export interface DeviceFingerprint {
   sdkVersion: string;
   uniqueMatchLinkToCheck?: string;
   device: DeviceInfo;
+  darkLaunchDetectedLink?: string;
 }
 
 export interface DeviceInfo {
