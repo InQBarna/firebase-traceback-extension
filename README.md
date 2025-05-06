@@ -2,9 +2,7 @@
 
 **Author**: InQBarna ([http://www.inqbarna.com](https://www.inqbarna.com))
 
-**Install**: Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/firebase-traceback).
-
-**Description**: Setup an associated domain for your mobile project universal / deep links.
+**Description**: Creates and setups an associated domain for your mobile project universal / deep links and recreates the capabilities of firebase dynamic links: post-appstore install detection, dynamic links...
 
 **Reference**: HIGHLY inspired in JauntyBrain's flowlinks extension ([https://flowlinks.app](https://flowlinks.app)). Which was missing some key features for our projects.
 
@@ -12,7 +10,13 @@
 
 Missing a feature or found a bug? Feel free to submit a [bug report or a feature request](https://github.com/InQBarna/firebase-traceback-extension/issues). Pull requests are always welcome!
 
-### Installation: Firebase CLI
+## Installation: Firebase CLI
+
+### Manual / Firebase Console
+
+Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/firebase-traceback).
+
+### Using Firebase CLI
 
 If you use firebase CLI on your project for firebase cloud functions of hosting, we recommend using also the firebase cli for installation
 
@@ -28,7 +32,7 @@ firebase ext:export
 
 ---
 
-### Details
+## Details
 
 Traceback is a replacement of [Dynamic Links](https://firebase.google.com/support/dynamic-links-faq) wich are being deprecated.
 
@@ -53,7 +57,23 @@ This extension uses other Firebase and Google Cloud Platform services, which hav
 - Cloud Firestore
 - Cloud Functions (Node.js 10+ runtime. [See FAQs](https://firebase.google.com/support/faq#extensions-pricing))
 
-### Contributing
+## Client side integration
+
+### iOS
+
+Use the companion iOS SDK for easier integration https://github.com/InQBarna/traceback-iOS. Follow the instruction of the SDK
+
+### Android
+
+TODO:
+
+## Creating links
+
+### Manually
+
+TODO:
+
+## Contributing
 
 If you want to contribute or debug the extension we recommend
 
