@@ -6,11 +6,18 @@
 
 **Reference**: HIGHLY inspired in JauntyBrain's flowlinks extension ([https://flowlinks.app](https://flowlinks.app)). Which was missing some key features for our projects.
 
----
-
 Missing a feature or found a bug? Feel free to submit a [bug report or a feature request](https://github.com/InQBarna/firebase-traceback-extension/issues). Pull requests are always welcome!
 
-## Installation: Firebase CLI
+## Details
+
+Traceback is a replacement of [Dynamic Links](https://firebase.google.com/support/dynamic-links-faq) wich are being deprecated.
+
+This extension allows you to setup your associated domain for iOS and android opening universal / deep links.
+Either an existing or new **Firebase Hosting** website & domain will be automatically created during initialization
+
+You can also setup dynamic links in a **Cloud Firestore** collection.
+
+## Installation
 
 ### Manual / Firebase Console
 
@@ -29,17 +36,6 @@ If you user firebase CLI, but already installed using the web interface, we reco
 ```bash
 firebase ext:export
 ```
-
----
-
-## Details
-
-Traceback is a replacement of [Dynamic Links](https://firebase.google.com/support/dynamic-links-faq) wich are being deprecated.
-
-This extension allows you to setup your associated domain for iOS and android opening universal / deep links.
-Either an existing or new **Firebase Hosting** website & domain will be automatically created during initialization
-
-You can also setup dynamic links in a **Cloud Firestore** collection.
 
 ### Additional setup
 
