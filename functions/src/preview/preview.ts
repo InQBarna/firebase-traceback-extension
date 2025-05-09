@@ -7,45 +7,45 @@ import axios from 'axios';
 import { Config } from '../config';
 
 export const link_preview = async function (
-    req: Request,
-    res: Response,
-    hostname: string,
-    config: Config
+  req: Request,
+  res: Response,
+  hostname: string,
+  config: Config,
 ) {
-    const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+  const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-    // Get Firestore instance
-    const db = admin.firestore();
+  // Get Firestore instance
+  const db = admin.firestore();
 
-    const collection = db.collection('_traceback_')
-      .doc('dynamiclinks')
-      .collection('records');;
+  const collection = db
+    .collection('_traceback_')
+    .doc('dynamiclinks')
+    .collection('records');
 
-    // Parse link data
-    const urlObject = new URL(req.baseUrl, 'https://example.com');
-    const linkPath = urlObject.pathname;
+  // Parse link data
+  const urlObject = new URL(req.baseUrl, 'https://example.com');
+  const linkPath = urlObject.pathname;
 
-    // Fetch link document
-    const snapshotQuery = collection.where('path', '==', linkPath).limit(1);
-    const linkSnapshot = await snapshotQuery.get();
+  // Fetch link document
+  const snapshotQuery = collection.where('path', '==', linkPath).limit(1);
+  const linkSnapshot = await snapshotQuery.get();
 
+  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const scheme = isEmulator ? 'http' : 'https';
+  const host = req.headers.host ?? hostname;
 
-    const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
-    const scheme = isEmulator ? 'http' : 'https';
-    const host = req.headers.host ?? hostname;
+  // If not found, return 404
+  const linkFound = linkSnapshot.docs.length !== 0;
+  let source: string;
+  if (!linkFound) {
+    source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
+  } else {
+    const dynamicLink = linkSnapshot.docs[0].data() as DynamicLink;
+    source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);
+  }
 
-    // If not found, return 404
-    const linkFound = linkSnapshot.docs.length !== 0;
-    let source: string;
-    if (!linkFound) {
-        source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
-    } else {
-        const dynamicLink = linkSnapshot.docs[0].data() as DynamicLink;
-        source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);
-    }
-
-    res.setHeader('Cache-Control', 'no-cache');
-    return res.status(200).send(source);
+  res.setHeader('Cache-Control', 'no-cache');
+  return res.status(200).send(source);
 };
 
 interface LinkInfo {
@@ -58,24 +58,26 @@ interface LinkInfo {
 }
 
 async function getPreviewLinkResponse(
-    scheme: string,
-    host: string,
-    dynamicLink: DynamicLink,
-    config: Config
+  scheme: string,
+  host: string,
+  dynamicLink: DynamicLink,
+  config: Config,
 ): Promise<string> {
-  let linkInfo = await getFirestoreDynamicLinkInfo(dynamicLink, config);
+  const linkInfo = await getFirestoreDynamicLinkInfo(dynamicLink, config);
   return getDynamicLinkHTMLResponse(scheme, host, linkInfo, config);
 }
 
 async function getUnknownLinkResponse(
-    scheme: string,
-    host: string,
-    url: string,
-    config: Config
+  scheme: string,
+  host: string,
+  url: string,
+  config: Config,
 ): Promise<string> {
-
   // Get iOS AppStore appID
-  let appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(config.iosBundleID, 'es');
+  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(
+    config.iosBundleID,
+    'es',
+  );
 
   return getDynamicLinkHTMLResponse(
     scheme,
@@ -85,33 +87,36 @@ async function getUnknownLinkResponse(
       description: 'app store description',
       image: '',
       followLink: new URL('about:blank'),
-      expires: (new Date()).getTime(),
-      appStoreInfo: appStoreInfo
+      expires: new Date().getTime(),
+      appStoreInfo: appStoreInfo,
     },
-    config
+    config,
   );
 }
 
 async function getFirestoreDynamicLinkInfo(
-    dynamicLink: DynamicLink,
-    config: Config
+  dynamicLink: DynamicLink,
+  config: Config,
 ): Promise<LinkInfo> {
   // Gather metadata
-  let title = dynamicLink.title || '';
-  let description = dynamicLink.description || '';
-  let image = dynamicLink.image || '';
+  const title = dynamicLink.title || '';
+  const description = dynamicLink.description || '';
+  const image = dynamicLink.image || '';
 
   const followLink = dynamicLink.followLink || 'about:blank';
   const expires = dynamicLink.expires;
 
-  let expiresNumber: number = expires?.toMillis() as number;
+  const expiresNumber: number = expires?.toMillis() as number;
   if (expiresNumber && expiresNumber < Date.now()) {
-    throw {expired: true};
+    throw { expired: true };
   }
 
   // Get iOS AppStore appID
   // TODO: static var with appStoreID
-  let appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(config.iosBundleID, 'es');
+  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(
+    config.iosBundleID,
+    'es',
+  );
 
   return {
     title: title,
@@ -119,18 +124,16 @@ async function getFirestoreDynamicLinkInfo(
     image: image,
     followLink: new URL(followLink),
     expires: expiresNumber,
-    appStoreInfo: appStoreInfo
-  }
+    appStoreInfo: appStoreInfo,
+  };
 }
 
 async function getDynamicLinkHTMLResponse(
-    scheme: string,
-    host: string,
-    linkInfo: LinkInfo,
-    config: Config
+  scheme: string,
+  host: string,
+  linkInfo: LinkInfo,
+  config: Config,
 ): Promise<string> {
-
-
   const templatePath = path.join(__dirname, '../assets/html/index.html');
   return fs
     .readFileSync(templatePath, { encoding: 'utf-8' })
@@ -140,39 +143,51 @@ async function getDynamicLinkHTMLResponse(
     .replaceAll('{{androidBundleID}}', config.androidBundleID)
     .replaceAll('{{androidScheme}}', (config.androidScheme ?? '').toString())
     .replaceAll('{{followLink}}', linkInfo.followLink?.toString() ?? '')
-    .replaceAll('{{thumbnail}}', linkInfo.image.length > 0 ? linkInfo.image : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''))
+    .replaceAll(
+      '{{thumbnail}}',
+      linkInfo.image.length > 0
+        ? linkInfo.image
+        : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''),
+    )
     .replaceAll('{{darkLaunchDomain}}', config.darkLaunchDomain ?? '')
     .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
-    .replaceAll('{{app_description}}', linkInfo.appStoreInfo?.description ?? '')
+    .replaceAll(
+      '{{app_description}}',
+      linkInfo.appStoreInfo?.description ?? '',
+    );
 }
 
 interface AppStoreInfo {
-  trackName: string
-  description: string
-  trackId: string
-  artworkUrl100: string
+  trackName: string;
+  description: string;
+  trackId: string;
+  artworkUrl100: string;
 }
 
 // Static variable for cached data
-const appStoreCache: Record<string, {
-  data: AppStoreInfo
-  expiresAt: number
-}> = {}
+const appStoreCache: Record<
+  string,
+  {
+    data: AppStoreInfo;
+    expiresAt: number;
+  }
+> = {};
 
 // Get AppStore numeric ID
 // TODO: static save of appstore link
-async function getAppStoreID(bundleId: string, country: string): Promise<AppStoreInfo | undefined> {
+async function getAppStoreID(
+  bundleId: string,
+  country: string,
+): Promise<AppStoreInfo | undefined> {
+  const cacheKey = `${bundleId}_${country}`;
+  const now = Date.now();
 
-  const cacheKey = `${bundleId}_${country}`
-  const now = Date.now()
-
-  const cached = appStoreCache[cacheKey]
+  const cached = appStoreCache[cacheKey];
   if (cached && cached.expiresAt > now) {
-    return cached.data
+    return cached.data;
   }
 
   try {
-
     const response = await axios.get(
       `http://itunes.apple.com/lookup?bundleId=${bundleId}&country=${country}`,
     );
@@ -182,10 +197,10 @@ async function getAppStoreID(bundleId: string, country: string): Promise<AppStor
 
       appStoreCache[cacheKey] = {
         data: appInfo,
-        expiresAt: now + 24 * 60 * 60 * 1000 // 24 hours in ms
-      }
+        expiresAt: now + 24 * 60 * 60 * 1000, // 24 hours in ms
+      };
 
-      return appInfo
+      return appInfo;
     }
 
     return undefined; // App Store URL not found in the response

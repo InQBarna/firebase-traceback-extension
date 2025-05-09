@@ -6,9 +6,9 @@ import { GoogleAuth } from 'google-auth-library';
 import { Config, config } from './config';
 
 export interface CreateSite {
-  alreadyCreated: boolean
-  alreadyConfigured: boolean
-  siteId: string
+  alreadyCreated: boolean;
+  alreadyConfigured: boolean;
+  siteId: string;
 }
 export interface VersionsResponse {
   versions: Version[];
@@ -37,7 +37,7 @@ export class FirebaseService {
 
   private accessToken: string | undefined;
 
-  private privateConfig: Config = config
+  private privateConfig: Config = config;
 
   // Get common JSON headers
   private get jsonHeaders() {
@@ -51,12 +51,12 @@ export class FirebaseService {
   public async init(config: Config) {
     // Get access token for REST API
     try {
-      this.privateConfig = config
+      this.privateConfig = config;
       await this.getAccessToken();
     } catch (error) {
-        throw Error(
-          'Could not get access token. If running test locally try executing gcloud auth "application-default login"'
-        );
+      throw Error(
+        'Could not get access token. If running test locally try executing gcloud auth "application-default login"',
+      );
     }
   }
 
@@ -89,28 +89,32 @@ export class FirebaseService {
   public async createNewWebsite(): Promise<CreateSite> {
     const siteID = this.getSiteId();
     try {
-      const url = `https://${this.privateConfig.domain}.web.app/.well-known/apple-app-site-association`
+      const url = `https://${this.privateConfig.domain}.web.app/.well-known/apple-app-site-association`;
       const expected = {
         applinks: {
           apps: [],
           details: [
             {
               appID: `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
-              paths: ['*']
-            }
-          ]
+              paths: ['*'],
+            },
+          ],
         },
         webcredentials: {
-          apps: [`${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`]
-        }
+          apps: [
+            `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
+          ],
+        },
       };
       const appSizeAssociationResp = await axios.get(url, {});
-      const matches = JSON.stringify(appSizeAssociationResp.data) === JSON.stringify(expected);
+      const matches =
+        JSON.stringify(appSizeAssociationResp.data) ===
+        JSON.stringify(expected);
       if (matches) {
         return {
           alreadyCreated: true,
           alreadyConfigured: true,
-          siteId: siteID
+          siteId: siteID,
         };
       }
     } catch (error) {
@@ -120,10 +124,10 @@ export class FirebaseService {
     try {
       const getUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites/${siteID}`;
       await axios.get(getUrl, { headers: this.jsonHeaders });
-    return {
+      return {
         alreadyCreated: true,
         alreadyConfigured: false,
-        siteId: siteID
+        siteId: siteID,
       };
     } catch {
       // Nice, continue
@@ -139,7 +143,7 @@ export class FirebaseService {
           return {
             alreadyCreated: true,
             alreadyConfigured: false,
-            siteId: siteID
+            siteId: siteID,
           };
         }
         throw Error(
@@ -150,21 +154,27 @@ export class FirebaseService {
     return {
       alreadyCreated: true,
       alreadyConfigured: false,
-      siteId: siteID
+      siteId: siteID,
     };
   }
 
   // Create new Hosting website version
-  public async createNewVersion(siteID: string, config: any): Promise<string | undefined> {
+  public async createNewVersion(
+    siteID: string,
+    config: any,
+  ): Promise<string | undefined> {
     try {
       const getUrl = `${this.firebaseHostingURL}/sites/${siteID}/versions`;
       const versionsResult = await axios.get(getUrl, {
         headers: this.jsonHeaders,
       });
-      const versionResponse: VersionsResponse = versionsResult.data as VersionsResponse;
-      let finalizedVersions = versionResponse.versions.filter(version => { return version.status === 'FINALIZED' })
+      const versionResponse: VersionsResponse =
+        versionsResult.data as VersionsResponse;
+      const finalizedVersions = versionResponse.versions.filter((version) => {
+        return version.status === 'FINALIZED';
+      });
       if (finalizedVersions.length > 0) {
-        return undefined
+        return undefined;
       }
     } catch {
       // Nice, continue...

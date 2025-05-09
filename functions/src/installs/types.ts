@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from 'firebase-admin/firestore';
 
 export interface DeviceFingerprint {
   appInstallationTime: number;
@@ -47,7 +47,5 @@ export interface DeviceHeuristics {
 
 export interface SavedDeviceHeuristics extends DeviceHeuristics {
   createdAt: Timestamp;
-  ip?: string
+  ip?: string;
 }
-
-

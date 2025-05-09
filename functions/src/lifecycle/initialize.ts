@@ -4,9 +4,9 @@ import { Config } from '../config';
 import DynamicLink from '../types';
 
 export const privateInitialize = async function (
-    createRemoteHost: boolean,
-    createSampleLink: boolean,
-    config: Config
+  createRemoteHost: boolean,
+  createSampleLink: boolean,
+  config: Config,
 ): Promise<undefined> {
   const { FirebaseService } = await import('../firebase-service');
 
@@ -19,7 +19,7 @@ export const privateInitialize = async function (
     // Create a new website
     const siteResult = await firebaseService.createNewWebsite();
     if (siteResult.alreadyConfigured) {
-      return
+      return;
     }
 
     // Specify website config
@@ -55,15 +55,15 @@ export const privateInitialize = async function (
 
   // Add a sample dynamic link
   if (createSampleLink) {
-
     // Initialize Firestore
     const db = admin.firestore();
-    const collection = db.collection('_traceback_')
+    const collection = db
+      .collection('_traceback_')
       .doc('dynamiclinks')
       .collection('records');
 
     // Add a sample dynamic link
-    let sampleLink: DynamicLink = {
+    const sampleLink: DynamicLink = {
       path: '/example',
       title: 'Example of dynamic link',
       description: 'This is a sample link!',
@@ -77,4 +77,4 @@ export const privateInitialize = async function (
     // Cold start the instance
     await axios.get(`https://${siteID}.web.app/example`);
   }
-}
+};
