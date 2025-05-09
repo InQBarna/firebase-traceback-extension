@@ -17,7 +17,9 @@ export const link_preview = async function (
     // Get Firestore instance
     const db = admin.firestore();
 
-    const collection = db.collection('_traceback_');
+    const collection = db.collection('_traceback_')
+      .doc('dynamiclinks')
+      .collection('records');;
 
     // Parse link data
     const urlObject = new URL(req.baseUrl, 'https://example.com');

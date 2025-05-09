@@ -28,6 +28,7 @@ export const deviceFingerprintSchema = Joi.object({
 interface MatchResult {
   match: SavedDeviceHeuristics
   score: number
+  uuid: string
 }
 
 enum AnalyticsType {
@@ -52,6 +53,7 @@ interface PostInstallResult {
   foundEntry: SavedDeviceHeuristics | undefined
   uniqueMatch: boolean | undefined
   analytics: AnalyticsMessage[]
+  uuld: string | undefined
 }
 
 export const private_v1_postinstall_search_link = functions
@@ -112,7 +114,12 @@ export const private_v1_postinstall_search_link = functions
         }
       }
 
-      // 3.- RESPONSE
+      // 3.- Remove if grabbed
+      if (result.uuld !== undefined) {
+        removeFoundPostInstall(result.uuld)
+      }
+
+      // 4.- RESPONSE (+ some more analytics)
       if (result.foundEntry !== undefined) {
         const response: TraceBackMatchResponse = {
           deep_link_id: result.foundEntry.clipboard,
@@ -142,6 +149,43 @@ export const private_v1_postinstall_search_link = functions
     }
   })
 
+  async function removeFoundPostInstall(
+    uuid: string
+  ): Promise<void> {
+
+    // REMOVE
+    const db = getFirestore();
+    const docRef = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+      .doc(uuid);
+    await docRef.delete();
+
+    // IN CASE WE WANt TO kEEY THEM
+    /*
+    const db = getFirestore();
+    const sourceRef = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+      .doc(uuid);
+    const targetRef = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('attributed')
+      .doc(uuid);
+    const snapshot = await sourceRef.get();
+    if (!snapshot.exists) {
+      console.warn(`Document ${uuid} not found in records`);
+      return;
+    }
+    const data = snapshot.data();
+    await targetRef.set(data);
+    await sourceRef.delete();
+    */
+  }
+
   async function searchPostInstall(
     fingerprint: DeviceFingerprint,
     ip: string | undefined,
@@ -151,6 +195,7 @@ export const private_v1_postinstall_search_link = functions
 
     let result: PostInstallResult;
 
+    // Kept for reference
     // let isNotFoundFBDL = darkLaunchDetectedLink !== undefined && darkLaunchDetectedLink.indexOf('No%20pre%2Dinstall%20link%20matched%20for%20this%20device') !== -1;
 
     const db = getFirestore()
@@ -217,7 +262,11 @@ async function searchByHeuristics(
       userAgent,
       data
     );
-    return { match: data, score: score } as MatchResult;
+    return { 
+      match: data,
+      score: score,
+      uuid: doc.id
+    } as MatchResult;
   });
 
   matches = matches.filter(match => { return match.score > 0; });
@@ -236,7 +285,8 @@ async function searchByHeuristics(
           ip: ip,
           userAgent: userAgent
         }
-      }]
+      }],
+      uuld: bestMatch.uuid
     };
   } else {
     let analytics: AnalyticsMessage[] =  []
@@ -252,10 +302,12 @@ async function searchByHeuristics(
         }
       });
     }
+    const foundEntry = bestMatch.match as SavedDeviceHeuristics;
     return {
-      foundEntry: bestMatch.match as SavedDeviceHeuristics,
+      foundEntry: foundEntry,
       uniqueMatch: false,
-      analytics: analytics
+      analytics: analytics,
+      uuld: bestMatch.uuid
     }
   }
 }
@@ -280,7 +332,8 @@ async function searchByClipboardContent(
           type: AnalyticsType.PASTEBOARD_NOT_FOUND,
           message: 'no match found with pasteboard content, and could not find _tracebackid in url',
           debugObject: fingerprint.uniqueMatchLinkToCheck
-        }]
+        }],
+        uuld: undefined
       };
     } else {
       const docRef = collection.doc(tracebackIdForDarkLaunch);
@@ -293,13 +346,15 @@ async function searchByClipboardContent(
           type: AnalyticsType.PASTEBOARD_NOT_FOUND,
           message: 'no match found with pasteboard content neither by using dark launch _tracebackid',
           debugObject: fingerprint.uniqueMatchLinkToCheck
-          }]
+          }],
+          uuld: undefined
         };
       } else {
         return {
           foundEntry: tidSnapshot.data() as SavedDeviceHeuristics,
           uniqueMatch: true,
-          analytics: []
+          analytics: [],
+          uuld: tidSnapshot.id
         };
       }
     }
@@ -316,7 +371,8 @@ async function searchByClipboardContent(
     return {
       foundEntry: firstDoc as SavedDeviceHeuristics,
       uniqueMatch: true,
-      analytics: analytics
+      analytics: analytics,
+      uuld: firstDoc.id
     };
   }
 }

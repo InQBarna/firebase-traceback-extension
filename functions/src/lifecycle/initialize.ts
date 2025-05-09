@@ -58,7 +58,9 @@ export const privateInitialize = async function (
 
     // Initialize Firestore
     const db = admin.firestore();
-    const collection = db.collection('_traceback_');
+    const collection = db.collection('_traceback_')
+      .doc('dynamiclinks')
+      .collection('records');
 
     // Add a sample dynamic link
     let sampleLink: DynamicLink = {
