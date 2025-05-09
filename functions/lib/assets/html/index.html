@@ -114,7 +114,7 @@
       <div>
         <div>
           <span>
-            <img src="//lh3.googleusercontent.com/QCk7U7SivAKX9UQ_rIcz08cJARxf2eEpjFInqL2fedqOYXmD9YDSUhTyvADt-rM__44M_nzI" aria-hidden="true" role="none">
+            <img src="{{thumbnail}}" aria-hidden="true" role="none">
             <br/>
             {{app_name}}
           </span>
@@ -253,6 +253,7 @@
     }
 
     if ('{{darkLaunchDomain}}' !== '') {
+      document.body.style.display = 'none';
       await darkLaunch();
     }
 

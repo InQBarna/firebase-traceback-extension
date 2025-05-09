@@ -138,7 +138,7 @@ async function getDynamicLinkHTMLResponse(
     .replaceAll('{{androidBundleID}}', config.androidBundleID)
     .replaceAll('{{androidScheme}}', (config.androidScheme ?? '').toString())
     .replaceAll('{{followLink}}', linkInfo.followLink?.toString() ?? '')
-    .replaceAll('{{thumbnail}}', linkInfo.image)
+    .replaceAll('{{thumbnail}}', linkInfo.image.length > 0 ? linkInfo.image : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''))
     .replaceAll('{{darkLaunchDomain}}', config.darkLaunchDomain ?? '')
     .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
     .replaceAll('{{app_description}}', linkInfo.appStoreInfo?.description ?? '')
@@ -148,18 +148,41 @@ interface AppStoreInfo {
   trackName: string
   description: string
   trackId: string
+  artworkUrl100: string
 }
+
+// Static variable for cached data
+const appStoreCache: Record<string, {
+  data: AppStoreInfo
+  expiresAt: number
+}> = {}
 
 // Get AppStore numeric ID
 // TODO: static save of appstore link
 async function getAppStoreID(bundleId: string, country: string): Promise<AppStoreInfo | undefined> {
+
+  const cacheKey = `${bundleId}_${country}`
+  const now = Date.now()
+
+  const cached = appStoreCache[cacheKey]
+  if (cached && cached.expiresAt > now) {
+    return cached.data
+  }
+
   try {
+
     const response = await axios.get(
       `http://itunes.apple.com/lookup?bundleId=${bundleId}&country=${country}`,
     );
 
     if (response.data && response.data.results.length > 0) {
       const appInfo: AppStoreInfo = response.data.results[0] as AppStoreInfo;
+
+      appStoreCache[cacheKey] = {
+        data: appInfo,
+        expiresAt: now + 24 * 60 * 60 * 1000 // 24 hours in ms
+      }
+
       return appInfo
     }
 

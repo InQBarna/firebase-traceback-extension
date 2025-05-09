@@ -25,13 +25,13 @@ apis:
   - apiName: firebasehosting.googleapis.com
     reason: Install script ensures a hosting is created as an assocaited domain.
   - apiName: firestore.googleapis.com
-    reason: Save campaign links to firestore.
+    reason: Firestore is used to keep track of app installation traces, store dynamic campaign links to firestore.
 
 roles:
   - role: firebasehosting.admin
     reason: Install script ensures a hosting is created as an assocaited domain.
   - role: datastore.user
-    reason: Save campaign links to firestore.
+    reason: Firestore is used to keep track of app installation traces, store dynamic campaign links to firestore.
 
 resources:
   - name: initialize
@@ -125,7 +125,7 @@ params:
     description: >
       Bundle ID of your iOS app.
     type: string
-    example: com.inqbarna.familymealplanner
+    example: com.mycompany.myapp
     validationRegex: ^([0-9a-zA-Z_.-]*)$
     validationErrorMessage: Invalid bundle ID format.
     required: true
@@ -141,11 +141,11 @@ params:
     required: true
 
   - param: ANDROID_BUNDLE_ID
-    label: Bundle ID of your Android app
+    label: Package name of your Android app
     description: >
-      Bundle ID of your Android app
+      Package name of your Android app
     type: string
-    example: com.inqbarna.familymealplanner
+    example: com.mycompany.myapp
     validationRegex: ^([0-9a-zA-Z_.-]*)$
     validationErrorMessage: Invalid bundle ID format.
     required: true
@@ -155,7 +155,7 @@ params:
     description: >
       Android SHA256 Fingerprint.
     type: string
-    example: FF:2A:CF:7B:DD:CC:F1:03:3E:E8:B2:27:7C:A2:E3:3C:DE:13:DB:AC:8E:EB:3A:B9:72:A1:0E:26:8A:F5:EC:AF
+    example: FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF:FF
     required: false
 
   - param: ANDROID_SCHEME
@@ -164,7 +164,7 @@ params:
       Optional parameter to use Android's intent link to app's content. See [custom
       scheme](https://developer.android.com/training/app-links/deep-linking).
     type: string
-    example: fmp://
+    example: com.mycompany.myapp://
     required: false
 
   - param: MIN_INSTANCES
