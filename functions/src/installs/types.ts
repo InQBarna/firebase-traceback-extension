@@ -15,6 +15,7 @@ export interface DeviceInfo {
   languageCode: string;
   languageCodeFromWebView?: string;
   languageCodeRaw: string;
+  appVersionFromWebView?: string;
   screenResolutionWidth: number;
   screenResolutionHeight: number;
   timezone: string;

@@ -23,6 +23,7 @@ export const deviceFingerprintSchema = Joi.object({
     languageCode: Joi.string().required(),
     languageCodeFromWebView: Joi.string().optional(),
     languageCodeRaw: Joi.string().required(),
+    appVersionFromWebView: Joi.string().optional(),
     screenResolutionWidth: Joi.number().required(),
     screenResolutionHeight: Joi.number().required(),
     timezone: Joi.string().required(),
@@ -314,7 +315,10 @@ async function searchByHeuristics(
   });
 
   matches = matches.filter((match) => {
-    return match.score > 0;
+    return (
+      match.score > 0 &&
+      fingerprint.appInstallationTime > match.match.createdAt.seconds
+    );
   });
   matches = matches.sort((a, b) => b.score - a.score);
   const bestMatch = matches[0] ?? undefined;
@@ -334,7 +338,7 @@ async function searchByHeuristics(
           },
         },
       ],
-      uuld: bestMatch.uuid,
+      uuld: undefined
     };
   } else {
     const analytics: AnalyticsMessage[] = [];
@@ -508,7 +512,7 @@ export function findMatchingInstall(
   if (entry.userAgent !== undefined && userAgent !== undefined) {
     const uaScore = matchWithAppUserAgent(
       fingerprint.device.deviceModelName,
-      userAgent,
+      fingerprint.device.appVersionFromWebView ?? userAgent,
       entry.userAgent,
     );
     if (uaScore == 0) {
