@@ -1,4 +1,4 @@
-## Version 0.1.0
+## Version 0.1.1
 
 - Using client's web browser app name for heuristics scoring.
 - Using appInstallation time for heuristics filter.
