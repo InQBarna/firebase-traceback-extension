@@ -1,5 +1,10 @@
 ## Version 0.1.0
 
+- Using client's web browser app name for heuristics scoring.
+- Using appInstallation time for heuristics filter.
+
+## Version 0.1.0
+
 - Initial version launched on 3 different project, Almost production ready
 
 ## Version 0.0.3
