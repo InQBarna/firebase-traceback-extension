@@ -42,6 +42,7 @@ enum AnalyticsType {
   PASTEBOARD_NOT_FOUND = 'PASTEBOARD_NOT_FOUND',
   HEURISTICS_NOT_FOUND = 'HEURISTICS_NOT_FOUND',
   HEURISTICS_MULTIPLE_MATCHES = 'HEURISTICS_MULTIPLE_MATCHES',
+  HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE = 'HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE',
   DARK_LAUNCH_MATCH = 'DARK_LAUNCH_MATCH',
   DARK_LAUNCH_MISMATCH = 'DARK_LAUNCH_MISMATCH',
   DEBUG_HEURISTICS_SUCCESS = 'DEBUG_HEURISTICS_SUCCESS',
@@ -103,6 +104,12 @@ export const private_v1_postinstall_search_link = functions
             );
             break;
           case AnalyticsType.HEURISTICS_MULTIPLE_MATCHES:
+            functions.logger.info(
+              element.type.toString() + ': ' + element.message,
+              JSON.stringify({ debugObject: element.debugObject }),
+            );
+            break;
+          case AnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE:
             functions.logger.warn(
               element.type.toString() + ': ' + element.message,
               JSON.stringify({ debugObject: element.debugObject }),
@@ -322,6 +329,8 @@ async function searchByHeuristics(
   });
   matches = matches.sort((a, b) => b.score - a.score);
   const bestMatch = matches[0] ?? undefined;
+  const bestMatchScore: number = bestMatch?.score ?? 1;
+  const bestSecondMatchScore: number = matches[1]?.score ?? 0;
 
   if (bestMatch == undefined || bestMatch.score == 0) {
     return {
@@ -343,8 +352,11 @@ async function searchByHeuristics(
   } else {
     const analytics: AnalyticsMessage[] = [];
     if (matches.length > 1) {
+      const sameScore = bestMatchScore == bestSecondMatchScore;
       analytics.push({
-        type: AnalyticsType.HEURISTICS_MULTIPLE_MATCHES,
+        type: sameScore
+          ? AnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE
+          : AnalyticsType.HEURISTICS_MULTIPLE_MATCHES,
         message: 'Multiple heuristics matches',
         debugObject: {
           fingerprint: fingerprint,
