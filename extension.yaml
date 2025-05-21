@@ -135,7 +135,7 @@ params:
     description: >
       Team ID from apple's appstoreconnect / Developer portal.
     type: string
-    example: 8X3V795LG6
+    example: ZZZZZZZZZZ
     validationRegex: ^([0-9A-Z]*)$
     validationErrorMessage: Invalid team ID format.
     required: true
@@ -184,10 +184,11 @@ params:
     label: Custom domain name
     description: >
       The domain name that will serve universal links. If left empty, 
-      https://${PROJECT_ID}-traceback.web.app will be used.
+      "${PROJECT_ID}-traceback" will be used, so the associated domain url
+      will be: https://${PROJECT_ID}-traceback.web.app.
       Indicate a custom one if needed
     type: string
-    validationRegex: ^([0-9a-zA-Z_.-]*)$
+    validationRegex: ^([0-9a-zA-Z_-]*)$
     validationErrorMessage: Invalid domain format.
     required: false
     immutable: true

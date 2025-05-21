@@ -147,7 +147,7 @@ export class FirebaseService {
           };
         }
         throw Error(
-          `Domain name ${siteID} is already taken. Try reinstalling with a different postfix.`,
+          `Domain name ${siteID} is already taken. Try reinstalling with a different domain.`,
         );
       }
     }

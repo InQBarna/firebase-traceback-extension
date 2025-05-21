@@ -481,7 +481,9 @@ export function findMatchingInstall(
 
   // 3. Language must match normalized (with replacement)
   const normalizedEntryLang = entry.language.replace('_', '-').toLowerCase();
-  const normalizedDeviceLang = device.languageCode
+  const normalizedDeviceLang = (
+    device.languageCodeFromWebView ?? device.languageCode
+  )
     .replace('_', '-')
     .toLowerCase();
 
