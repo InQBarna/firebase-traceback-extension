@@ -1,3 +1,7 @@
+## Version 0.1.2
+
+- YAML updated with external services (itunes connect api)
+
 ## Version 0.1.1
 
 - Using client's web browser app name for heuristics scoring.
