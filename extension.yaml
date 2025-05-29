@@ -204,3 +204,7 @@ params:
     validationErrorMessage: Invalid domain format, should be XXX.page.link.
     required: false
     immutable: false
+
+externalServices:
+  - name: Appstore connect listing
+    pricingUri: http://itunes.apple.com/lookup
