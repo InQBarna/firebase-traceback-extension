@@ -13,9 +13,9 @@ the extension project. Can't get it working reversely, please let us know if you
 
 ```bash
 cd traceback-extension/functions/
-ln -s ../../my-project/functions my-project-tests
+ln -s ../../my-project/ my-project-tests
 cd my-project-tests/functions
-firebase ext:install ../../
+firebase ext:install ../../../
 ```
 3.- Debug locally, usually with
 
