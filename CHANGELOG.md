@@ -1,3 +1,7 @@
+## Version 0.2.0
+
+- Using referrer for android
+
 ## Version 0.1.2
 
 - YAML updated with external services (itunes connect api)
