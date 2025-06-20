@@ -67,7 +67,7 @@ Use the companion iOS SDK for easier integration https://github.com/InQBarna/tra
 
 ### Android
 
-TODO:
+The Android SDK can be found [here](https://github.com/InQBarna/traceback-android)
 
 ## Creating links
 
