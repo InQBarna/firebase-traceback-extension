@@ -276,7 +276,8 @@
         body: JSON.stringify(heuristicsWithClipboard)
       });
 
-      const originalLinkParam = (new URL(window.location.href)).searchParams.get("link");
+      const currentURL = new URL(window.location.href);
+      const originalLinkParam = currentURL.searchParams.get("link");
       if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
         window.location.href = '{{followLink}}';
       } else if (isIOS) {
@@ -288,11 +289,12 @@
           );
           window.location.href = `intent:#Intent;scheme={{androidScheme}};package={{androidBundleID}};S.browser_fallback_url=${fallbackUrl};end`;
         } else {
-          window.location.href =
-            'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' + encodeURIComponent(originalLinkParam);
+          const playStoreLocation = 'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' + encodeURIComponent(originalLinkParam);
+          window.location.href = playStoreLocation;
         }
       } else {
         console.log('Not iOs or android detected')
+        window.location.href = originalLinkParam;
       }
     });
   </script>

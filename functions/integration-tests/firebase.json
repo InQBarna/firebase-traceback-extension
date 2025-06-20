@@ -20,7 +20,7 @@
     "singleProjectMode": true
   },
   "extensions": {
-    "firebase-traceback": "../../"
+    "traceback": "../../../"
   },
   "hosting": {
     "public": "public",
@@ -33,7 +33,7 @@
     "rewrites": [
       {
         "source": "**",
-        "function": "ext-firebase-traceback-dynamichostingcontent",
+        "function": "ext-traceback-dynamichostingcontent",
         "region": "europe-west1"
       }
     ]

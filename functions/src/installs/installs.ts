@@ -443,7 +443,7 @@ async function searchByClipboardContent(
       foundEntry: firstDoc as SavedDeviceHeuristics,
       uniqueMatch: true,
       analytics: analytics,
-      uuld: firstDoc.id,
+      uuld: snapshot.docs[0].id,
     };
   }
 }
