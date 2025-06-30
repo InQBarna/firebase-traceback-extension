@@ -258,11 +258,13 @@ async function searchPostInstall(
       ip,
       userAgent,
     );
-    if (heuristicsSearch.foundEntry !== result.foundEntry) {
+    if (
+      result.foundEntry === undefined &&
+      heuristicsSearch.foundEntry !== result.foundEntry
+    ) {
       result.analytics.push({
         type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
-        message:
-          'heuristisc whould have returned different result than unique search',
+        message: 'heuristisc would have returned different result than current successfull unique search',
         debugObject: {
           unique: result.foundEntry,
           heuristics: heuristicsSearch.foundEntry,
@@ -272,7 +274,7 @@ async function searchPostInstall(
       result.analytics.push({
         type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
         message:
-          'heuristisc whould have returned the same result than unique search, hurray!',
+          'heuristisc would have returned the same result than unique search, hurray!',
         debugObject: undefined,
       });
     }
@@ -285,7 +287,10 @@ async function searchPostInstall(
       result.analytics.push({
         type: AnalyticsType.DARK_LAUNCH_MISMATCH,
         message: 'matched dark launch',
-        debugObject: darkLaunchDetectedLink,
+        debugObject: {
+          darkLaunch: darkLaunchDetectedLink,
+          detected: result.foundEntry,
+        },
       });
     } else {
       result.analytics.push({
@@ -347,7 +352,7 @@ async function searchByHeuristics(
           },
         },
       ],
-      uuld: undefined
+      uuld: undefined,
     };
   } else {
     const analytics: AnalyticsMessage[] = [];
@@ -382,7 +387,7 @@ async function searchByClipboardContent(
   uniqueMatchLinkToCheck: string,
 ): Promise<PostInstallResult> {
   const snapshot = await collection
-    .where('clipboard', '==', fingerprint.uniqueMatchLinkToCheck)
+    .where('clipboard', '==', uniqueMatchLinkToCheck)
     .get();
 
   if (snapshot.empty) {
@@ -704,7 +709,7 @@ export async function deleteOldInstalls(
   db: Firestore,
 ): Promise<void> {
   const snapshot = await db
-    .collection('_traceback')
+    .collection('_traceback_')
     .doc('installs')
     .collection('records')
     .where(
