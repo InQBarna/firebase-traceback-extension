@@ -1,5 +1,9 @@
 ## Version 0.2.0
 
+- Referrer for android indicated in external services
+
+## Version 0.2.0
+
 - Using referrer for android
 
 ## Version 0.1.2
