@@ -208,3 +208,5 @@ params:
 externalServices:
   - name: Appstore connect listing
     pricingUri: http://itunes.apple.com/lookup
+  - name: Google play redirect
+    pricingUri: https://play.google.com
