@@ -202,13 +202,19 @@ export const private_v1_postinstall_search_link = functions
 
 async function removeFoundPostInstall(uuid: string): Promise<void> {
   // REMOVE
-  const db = getFirestore();
-  const docRef = db
-    .collection('_traceback_')
-    .doc('installs')
-    .collection('records')
-    .doc(uuid);
-  await docRef.delete();
+  try {
+    const db = getFirestore();
+    const docRef = db
+      .collection('_traceback_')
+      .doc('installs')
+      .collection('records')
+      .doc(uuid);
+    await docRef.delete();
+  } catch {
+    console.error(
+      `Document ${uuid} not found in records when trying removeFoundPostInstall`,
+    );
+  }
 
   // IN CASE WE WANt TO kEEY THEM
   /*
