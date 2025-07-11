@@ -2,6 +2,10 @@ import * as request from 'supertest'
 import { DeviceHeuristics, DeviceFingerprint } from '../src/installs/types'
 
 const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'http://localhost:5002';
+// const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://familymealplan-pre-traceback.web.app';
+// const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdvtest-fab2a-traceback.web.app';
+// const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdv-traceback.web.app';
+
 
 const testHeuristics: DeviceHeuristics = {
   language: 'en-EN',
@@ -126,3 +130,50 @@ describe('TraceBack associated domain', () => {
   })
 })
 
+const testFingerprintMissingKey: DeviceFingerprint = {
+  appInstallationTime: Date.now(),
+  bundleId: 'com.test.app',
+  osVersion: '17.4',
+  sdkVersion: '1.0.0',
+  device: {
+    deviceModelName: 'iPhone15,3',
+    languageCode: 'en-EN',
+    languageCodeFromWebView: 'en-EN',
+    languageCodeRaw: 'en_EN',
+    screenResolutionWidth: 390,
+    screenResolutionHeight: 844,
+    timezone: 'Europe/London'
+  }
+};
+
+describe('TraceBack API Integration corner case', () => {
+  test('missing fingerPrint Key', async () => {
+    // 1. Send to /v1_preinstall_save_link
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(testHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+    expect(storeResponse.body.installId).toBeDefined();
+
+    // 2. Query with /v1_postinstall_search_link
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(testFingerprintMissingKey);
+
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('none');
+  });
+});
+
+describe('TraceBack API Integration doctor', () => {
+  test('Doctor endpoint success', async () => {
+    // 1. Send to /v1_preinstall_save_link
+    const doctorResponse = await request(HOST_BASE_URL).get('/v1_doctor').send();
+
+    expect(doctorResponse.statusCode).toBe(200);
+    expect(doctorResponse.body.extensionInitialization).toBeDefined()
+    expect(doctorResponse.body.extensionInitialization.siteAlreadyExisted).toBe(true);
+  });
+});

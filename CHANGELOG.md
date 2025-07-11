@@ -1,3 +1,7 @@
+## Version 0.2.2
+
+- Doctor endpoint improved
+
 ## Version 0.2.1
 
 - Referrer for android indicated in external services
