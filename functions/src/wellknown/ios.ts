@@ -1,5 +1,21 @@
 import { Request, Response } from 'express';
 
+export interface AppleAppSiteAssociationAppDetails {
+  appID: string;
+  paths: string[];
+};
+export interface AppleAppSiteAssociationAppLinks {
+  apps: any[];
+  details: AppleAppSiteAssociationAppDetails[];
+};
+export interface AppleAppSiteAssociationWebCredentials {
+  apps: string[];
+}
+export interface AppleAppSizeAssociationDTO {
+  applinks: AppleAppSiteAssociationAppLinks[];
+  webcredentials: AppleAppSiteAssociationWebCredentials[];
+}
+
 export const apple_app_size_association = async function (
   req: Request,
   res: Response,

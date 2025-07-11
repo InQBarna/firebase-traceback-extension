@@ -3,23 +3,36 @@ import * as admin from 'firebase-admin';
 import { Config } from '../config';
 import DynamicLink from '../types';
 
+export interface ExtensionInitializationResult {
+  siteAlreadyExisted: boolean;
+  siteCreatedViaAPI: boolean;
+  siteName: string;
+  error: string | undefined
+}
+
 export const privateInitialize = async function (
   createRemoteHost: boolean,
   createSampleLink: boolean,
   config: Config,
-): Promise<undefined> {
+): Promise<ExtensionInitializationResult> {
   const { FirebaseService } = await import('../firebase-service');
 
   // Initialize Firebase Service
   const firebaseService = new FirebaseService();
   await firebaseService.init(config);
   const siteID = await firebaseService.getSiteId();
+  const siteName = `https://${siteID}.web.app`;
 
   if (createRemoteHost) {
     // Create a new website
     const siteResult = await firebaseService.createNewWebsite();
     if (siteResult.alreadyConfigured) {
-      return;
+      return {
+        siteAlreadyExisted: true,
+        siteCreatedViaAPI: false,
+        siteName: siteName,
+        error: undefined
+      } as ExtensionInitializationResult;
     }
 
     // Specify website config
@@ -43,7 +56,12 @@ export const privateInitialize = async function (
     );
 
     if (versionID === undefined) {
-      return;
+      return {
+        siteAlreadyExisted: true,
+        siteCreatedViaAPI: false,
+        siteName: siteName,
+        error: 'Could not create a new site version via api, this usually means site already created',
+      } as ExtensionInitializationResult;
     }
 
     // Finalize version
@@ -76,5 +94,18 @@ export const privateInitialize = async function (
   if (createRemoteHost) {
     // Cold start the instance
     await axios.get(`https://${siteID}.web.app/example`);
+    return {
+      siteAlreadyExisted: false,
+      siteCreatedViaAPI: true,
+      siteName: siteName,
+      error: undefined,
+    } as ExtensionInitializationResult;
+  } else {
+    return {
+      siteAlreadyExisted: false,
+      siteCreatedViaAPI: false,
+      siteName: siteName,
+      error: undefined,
+    } as ExtensionInitializationResult;
   }
 };

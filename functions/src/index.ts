@@ -11,6 +11,7 @@ import {
 import { apple_app_size_association } from './wellknown/ios';
 import { asset_links } from './wellknown/android';
 import { link_preview } from './preview/preview';
+import { private_doctor } from './doctor';
 import { privateInitialize } from './lifecycle/initialize';
 
 //
@@ -32,12 +33,15 @@ const hostname = `${getSiteId()}.web.app`;
 exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
   const { getExtensions } = await import('firebase-admin/extensions');
   try {
-    await privateInitialize(true, true, config);
+    const initResult = await privateInitialize(true, true, config);
 
     // Finalize extension initialization
     await getExtensions()
       .runtime()
-      .setProcessingState('PROCESSING_COMPLETE', `Initialization is complete`);
+      .setProcessingState(
+        'PROCESSING_COMPLETE',
+        `Initialization is complete ` + (initResult.error ?? ''),
+      );
   } catch (error) {
     const errorMessage = error === Error ? (error as Error).message : error;
     functions.logger.error('Initialization error:', errorMessage);
@@ -51,23 +55,15 @@ exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
   }
 });
 
-// # Cloud function endpoint to repeat initialization
-exports.doctor = functions.https.onRequest(
-  async (request, response): Promise<void> => {
-    // TODO: make this a doctor endpoint
-    try {
-      await privateInitialize(true, true, config);
-      response.status(200).send({ success: true });
-    } catch (error) {
-      const errorMessage = error === Error ? (error as Error).message : error;
-      functions.logger.error('Initialization error:', errorMessage);
-      response.status(500).send('Internal Server Error');
-    }
-  },
-);
-
 // # Initialize Express app
 const app = express();
+
+//
+// # Doctor
+//
+
+exports.doctor = private_doctor;
+app.get('/v1_doctor', private_doctor);
 
 //
 // # Post install cloud function endpoint

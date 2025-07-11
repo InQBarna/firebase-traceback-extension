@@ -62,6 +62,12 @@ interface PostInstallResult {
   uuld: string | undefined;
 }
 
+interface LinkExtraction {
+  dynamicLinkUrl: URL;
+  tracebackId: string | undefined;
+  dynamicLinkUrlWithoutTracebackId: URL;
+}
+
 export const private_v1_postinstall_search_link = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
@@ -264,7 +270,8 @@ async function searchPostInstall(
     ) {
       result.analytics.push({
         type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
-        message: 'heuristisc would have returned different result than current successfull unique search',
+        message:
+          'heuristisc would have returned different result than current successfull unique search',
         debugObject: {
           unique: result.foundEntry,
           heuristics: heuristicsSearch.foundEntry,
@@ -283,24 +290,52 @@ async function searchPostInstall(
   }
 
   if (darkLaunchDetectedLink !== undefined) {
-    if (darkLaunchDetectedLink !== result.foundEntry?.clipboard) {
+    if (result.foundEntry === undefined) {
       result.analytics.push({
         type: AnalyticsType.DARK_LAUNCH_MISMATCH,
-        message: 'matched dark launch',
+        message: 'dark launch mismatch: no entry found',
         debugObject: {
           darkLaunch: darkLaunchDetectedLink,
-          detected: result.foundEntry,
         },
       });
     } else {
-      result.analytics.push({
-        type: AnalyticsType.DARK_LAUNCH_MATCH,
-        message: 'dark launch mismatch',
-        debugObject: {
-          darkLaunch: darkLaunchDetectedLink,
-          traceback: result.foundEntry.clipboard,
-        },
-      });
+      const foundLink = extractTracebackIdFromDynamicLink(
+        result.foundEntry.clipboard,
+      );
+      if (foundLink === undefined) {
+        result.analytics.push({
+          type: AnalyticsType.DARK_LAUNCH_MISMATCH,
+          message:
+            'dark launch mismatch / system error: found entry did not include link= param',
+          debugObject: {
+            darkLaunch: darkLaunchDetectedLink,
+            result: result.foundEntry,
+          },
+        });
+      } else if (
+        foundLink.dynamicLinkUrlWithoutTracebackId.toString() !==
+        darkLaunchDetectedLink
+      ) {
+        result.analytics.push({
+          type: AnalyticsType.DARK_LAUNCH_MISMATCH,
+          message: 'dark launch mismatch',
+          debugObject: {
+            darkLaunch: darkLaunchDetectedLink,
+            link: foundLink.dynamicLinkUrlWithoutTracebackId,
+            result: result.foundEntry,
+          },
+        });
+      } else {
+        result.analytics.push({
+          type: AnalyticsType.DARK_LAUNCH_MATCH,
+          message: 'matched dark launch',
+          debugObject: {
+            darkLaunch: darkLaunchDetectedLink,
+            link: result.foundEntry,
+            result: result.foundEntry,
+          },
+        });
+      }
     }
   }
 
@@ -394,7 +429,7 @@ async function searchByClipboardContent(
     const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(
       uniqueMatchLinkToCheck,
     );
-    if (tracebackIdForDarkLaunch === undefined) {
+    if (tracebackIdForDarkLaunch?.tracebackId === undefined) {
       return {
         foundEntry: undefined,
         uniqueMatch: false,
@@ -409,7 +444,7 @@ async function searchByClipboardContent(
         uuld: undefined,
       };
     } else {
-      const docRef = collection.doc(tracebackIdForDarkLaunch);
+      const docRef = collection.doc(tracebackIdForDarkLaunch.tracebackId);
       const tidSnapshot = await docRef.get();
       if (!tidSnapshot.exists) {
         return {
@@ -455,7 +490,7 @@ async function searchByClipboardContent(
 
 function extractTracebackIdFromDynamicLink(
   dynamicLinkUrl: string,
-): string | undefined {
+): LinkExtraction | undefined {
   try {
     const outerUrl = new URL(dynamicLinkUrl);
     const encodedLinkParam = outerUrl.searchParams.get('link');
@@ -468,7 +503,13 @@ function extractTracebackIdFromDynamicLink(
     const nestedUrl = new URL(decodedOnce);
 
     const tracebackId = nestedUrl.searchParams.get('_tracebackid');
-    return tracebackId || undefined;
+    const copieddUrl = nestedUrl;
+    copieddUrl.searchParams.delete('_tracebackid');
+    return {
+      dynamicLinkUrl: nestedUrl,
+      tracebackId: tracebackId,
+      dynamicLinkUrlWithoutTracebackId: copieddUrl,
+    } as LinkExtraction;
   } catch (err) {
     // console.error('Failed to extract _tracebackid:', err);
     return undefined;
@@ -717,6 +758,7 @@ export async function deleteOldInstalls(
       '<',
       Timestamp.fromMillis(Date.now() - minutes * 60 * 1000),
     )
+    .limit(100) // Important! below 500 allways
     .get();
 
   if (snapshot.empty) {
