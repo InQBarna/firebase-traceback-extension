@@ -320,7 +320,8 @@ async function searchPostInstall(
         });
       } else if (
         foundLink.dynamicLinkUrlWithoutTracebackId.toString() !==
-        darkLaunchDetectedLink
+          darkLaunchDetectedLink &&
+        foundLink.dynamicLinkUrl.toString() !== darkLaunchDetectedLink
       ) {
         result.analytics.push({
           type: AnalyticsType.DARK_LAUNCH_MISMATCH,
@@ -435,7 +436,10 @@ async function searchByClipboardContent(
     const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(
       uniqueMatchLinkToCheck,
     );
-    if (tracebackIdForDarkLaunch?.tracebackId === undefined) {
+    if (
+      tracebackIdForDarkLaunch?.tracebackId === undefined ||
+      tracebackIdForDarkLaunch?.tracebackId === ''
+    ) {
       return {
         foundEntry: undefined,
         uniqueMatch: false,
@@ -450,6 +454,9 @@ async function searchByClipboardContent(
         uuld: undefined,
       };
     } else {
+      console.info(
+        `Searching by docId (_tracebackid) ${tracebackIdForDarkLaunch.tracebackId}`,
+      );
       const docRef = collection.doc(tracebackIdForDarkLaunch.tracebackId);
       const tidSnapshot = await docRef.get();
       if (!tidSnapshot.exists) {
