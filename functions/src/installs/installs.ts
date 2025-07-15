@@ -588,18 +588,12 @@ export function findMatchingInstall(
       fingerprint.device.appVersionFromWebView ?? userAgent,
       entry.userAgent,
     );
-    if (uaScore == 0) {
-      return 0;
-    }
     score += uaScore;
 
     const osVersionScore = osVersionMatches(
       fingerprint.osVersion,
       entry.userAgent,
     );
-    if (osVersionScore == 0) {
-      return 0;
-    }
     score += osVersionScore;
   }
 
