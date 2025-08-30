@@ -1,3 +1,7 @@
+## Version 0.3.0
+
+- Heuristic search highly improved
+
 ## Version 0.2.2
 
 - Doctor endpoint improved
