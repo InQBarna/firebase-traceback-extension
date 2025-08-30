@@ -167,6 +167,334 @@ describe('TraceBack API Integration corner case', () => {
   });
 });
 
+// Edge Case Tests for Heuristic Search Improvements
+describe('TraceBack Heuristic Search Edge Cases', () => {
+  
+  // Test 1: Timing edge cases - app install very close to pre-install
+  test('should match when app install time is slightly before pre-install (negative timing)', async () => {
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    // Create matching heuristics data
+    const matchingHeuristics: DeviceHeuristics = {
+      ...testHeuristics,
+      clipboard: 'http://127.0.0.1:5002/timing-test-link'
+    };
+    
+    // Store heuristics first
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(matchingHeuristics);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    // Test with app install time 10 seconds before pre-install (within our 30s tolerance)
+    const fingerprintWithEarlierTime: DeviceFingerprint = {
+      ...testFingerprint,
+      appInstallationTime: currentTime - 10, // 10 seconds earlier
+      uniqueMatchLinkToCheck: undefined, // Force heuristic search
+      device: {
+        ...testFingerprint.device,
+        languageCode: 'en-EN', // Match the stored language
+        languageCodeFromWebView: 'en-EN',
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintWithEarlierTime);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should find match via heuristics
+  });
+
+  // Test 2: Timing edge case - beyond tolerance window
+  test('should not match when app install time is too far before pre-install', async () => {
+    const currentTime = Math.floor(Date.now() / 1000);
+    
+    const matchingHeuristics2: DeviceHeuristics = {
+      ...testHeuristics,
+      clipboard: 'http://127.0.0.1:5002/timing-test-link-2'
+    };
+    
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(matchingHeuristics2);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    // Test with app install time 60 seconds before pre-install (beyond 30s tolerance)
+    const fingerprintTooEarly: DeviceFingerprint = {
+      ...testFingerprint,
+      appInstallationTime: currentTime - 60,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        languageCode: 'en-EN', // Match the stored language
+        languageCodeFromWebView: 'en-EN',
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintTooEarly);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('none'); // Should not match
+  });
+
+  // Test 3: User Agent variations - different formats but same device
+  test('should match with slightly different user agent formats', async () => {
+    const heuristicsWithUA: DeviceHeuristics = {
+      ...testHeuristics,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
+      clipboard: 'http://127.0.0.1:5002/ua-test-link'
+    };
+    
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('User-Agent', heuristicsWithUA.userAgent)
+      .send(heuristicsWithUA);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    // Different but compatible user agent format
+    const fingerprintDiffUA: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        appVersionFromWebView: 'iqbdemocms/1.0 (iOS 17.4; iPhone15,3)', // Different format but same device
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('User-Agent', 'iqbdemocms/1.0 (iOS 17.4; iPhone15,3)')
+      .send(fingerprintDiffUA);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous');
+  });
+
+  // Test 4: IP Address changes (common in mobile networks)
+  test('should still match when IP address changes between pre/post install', async () => {
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('X-Forwarded-For', '192.168.1.100') // WiFi IP
+      .send({...testHeuristics, clipboard: 'http://127.0.0.1:5002/ip-test-link'});
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    const fingerprintDiffIP: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+    };
+    
+    // Different IP (cellular network)
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('X-Forwarded-For', '10.0.0.50')
+      .send(fingerprintDiffIP);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should still match via other signals
+  });
+
+  // Test 5: Device model variations (iPhone15,3 vs iPhone 14 Pro vs similar models)
+  test('should handle device model variations correctly', async () => {
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send({...testHeuristics, clipboard: 'http://127.0.0.1:5002/device-test-link'});
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    // Slightly different device model but same specs
+    const fingerprintSimilarDevice: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        deviceModelName: 'iPhone15,2', // Similar but not identical model
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintSimilarDevice);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    // Should still match due to other matching signals (screen, timezone, language)
+  });
+
+  // Test 6: Timezone format variations (case sensitivity, etc.)
+  test('should handle timezone format variations', async () => {
+    const heuristicsUpperCase: DeviceHeuristics = {
+      ...testHeuristics,
+      timezone: 'EUROPE/LONDON', // Upper case
+      clipboard: 'http://127.0.0.1:5002/timezone-test-link'
+    };
+    
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(heuristicsUpperCase);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    const fingerprintLowerCase: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        timezone: 'europe/london', // Lower case
+        languageCode: 'en-EN', // Match the stored language
+        languageCodeFromWebView: 'en-EN',
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintLowerCase);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should match (case-insensitive)
+  });
+
+  // Test 7: Language code variations (_  vs - separator)
+  test('should handle language code format variations', async () => {
+    const heuristicsUnderscore: DeviceHeuristics = {
+      ...testHeuristics,
+      language: 'en_US', // Underscore format
+      languages: ['en_US'],
+      clipboard: 'http://127.0.0.1:5002/lang-test-link'
+    };
+    
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(heuristicsUnderscore);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    const fingerprintDash: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        languageCode: 'en-US', // Dash format
+        languageCodeFromWebView: 'en-US',
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintDash);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should match (normalized)
+  });
+
+  // Test 8: Multiple potential matches - scoring system
+  test('should pick best match when multiple similar entries exist', async () => {
+    // Create first entry with partial match
+    const heuristics1: DeviceHeuristics = {
+      ...testHeuristics,
+      language: 'es-ES', // Different language
+      clipboard: 'http://127.0.0.1:5002/multi-test-link-1'
+    };
+    
+    const store1Response = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(heuristics1);
+    expect(store1Response.statusCode).toBe(200);
+    
+    // Wait a moment to ensure different timestamps
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Create second entry with better match
+    const heuristics2: DeviceHeuristics = {
+      ...testHeuristics,
+      clipboard: 'http://127.0.0.1:5002/multi-test-link-2'
+    };
+    
+    const store2Response = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('User-Agent', testHeuristics.userAgent)
+      .send(heuristics2);
+    expect(store2Response.statusCode).toBe(200);
+    
+    // Search should find the better match
+    const fingerprintMultiMatch: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('User-Agent', 'iqbdemocms/1.0 (iOS 17.4; iPhone15,3)')
+      .send(fingerprintMultiMatch);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('ambiguous');
+    // Should match the second entry (better language match)
+  });
+
+  // Test 9: Screen resolution edge case - common mobile resolutions
+  test('should not match with different screen resolutions', async () => {
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send({...testHeuristics, clipboard: 'http://127.0.0.1:5002/resolution-test-link'});
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    const fingerprintDiffResolution: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...testFingerprint.device,
+        screenResolutionWidth: 414, // Different resolution (iPhone 11)
+        screenResolutionHeight: 896,
+      }
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(fingerprintDiffResolution);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('none'); // Should fail due to resolution mismatch
+  });
+
+  // Test 10: OS Version matching with minor differences
+  test('should handle OS version variations correctly', async () => {
+    const heuristicsOS: DeviceHeuristics = {
+      ...testHeuristics,
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4_1 like Mac OS X)', // Specific patch version
+      clipboard: 'http://127.0.0.1:5002/os-test-link'
+    };
+    
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('User-Agent', heuristicsOS.userAgent)
+      .send(heuristicsOS);
+    
+    expect(storeResponse.statusCode).toBe(200);
+    
+    const fingerprintDiffOSPatch: DeviceFingerprint = {
+      ...testFingerprint,
+      uniqueMatchLinkToCheck: undefined,
+      osVersion: '17.4.2', // Different patch version
+    };
+    
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('User-Agent', 'iqbdemocms/1.0 (iOS 17.4; iPhone15,3)')
+      .send(fingerprintDiffOSPatch);
+    
+    expect(matchResponse.statusCode).toBe(200);
+    // Should still match due to major version compatibility
+    expect(matchResponse.body.match_type).toBe('ambiguous');
+  });
+});
+
 describe('TraceBack API Integration doctor', () => {
   test('Doctor endpoint success', async () => {
     // 1. Send to /v1_preinstall_save_link

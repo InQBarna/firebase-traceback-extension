@@ -369,10 +369,11 @@ async function searchByHeuristics(
   });
 
   matches = matches.filter((match) => {
-    return (
-      match.score > 0 &&
-      fingerprint.appInstallationTime > match.match.createdAt.seconds
-    );
+    // Allow small negative time differences (up to 30 seconds) to account for
+    // clock synchronization issues, network delays, and quick app installations
+    const timeDifference =
+      fingerprint.appInstallationTime - match.match.createdAt.seconds;
+    return match.score > 0 && timeDifference > -30;
   });
   matches = matches.sort((a, b) => b.score - a.score);
   const bestMatch = matches[0] ?? undefined;
@@ -550,7 +551,7 @@ export function findMatchingInstall(
     return 0;
   }
 
-  // 3. Language must match normalized (with replacement)
+  // 3. Language primary code must match, secondary gives bonus score
   const normalizedEntryLang = entry.language.replace('_', '-').toLowerCase();
   const normalizedDeviceLang = (
     device.languageCodeFromWebView ?? device.languageCode
@@ -558,12 +559,29 @@ export function findMatchingInstall(
     .replace('_', '-')
     .toLowerCase();
 
-  if (normalizedEntryLang !== normalizedDeviceLang) {
+  // Split into primary (en) and secondary (us, gb, etc.)
+  const entryLangParts = normalizedEntryLang.split('-');
+  const deviceLangParts = normalizedDeviceLang.split('-');
+  
+  // Primary language code must match (en, es, fr, etc.)
+  if (entryLangParts[0] !== deviceLangParts[0]) {
     return 0;
   }
 
-  // ✅ Resolution, timezone, language matched
+  // ✅ Resolution, timezone, primary language matched
   let score = 5;
+  
+  // High bonus score for exact language match (including region)
+  if (normalizedEntryLang === normalizedDeviceLang) {
+    score += 3; // Exact match bonus
+  } else if (entryLangParts[1] && deviceLangParts[1] && entryLangParts[1] === deviceLangParts[1]) {
+    score += 2; // Same region bonus
+  } else if (entryLangParts[1] && deviceLangParts[1]) {
+    // Different regions but both specified - small penalty but still match
+    score += 0; // No bonus but no penalty
+  } else {
+    score += 1; // One has region, one doesn't - small bonus
+  }
 
   // Extra point if original casing of timezone matches exactly
   if (entry.timezone === device.timezone) {
@@ -575,10 +593,10 @@ export function findMatchingInstall(
     score += 1;
   }
 
-  // IP: must match if both present, otherwise return 0
-  if (entry.ip !== undefined && ip !== undefined) {
-    if (entry.ip !== ip) return 0;
-    score += 5;
+  // IP: bonus points if IPs match, but no penalty if they don't
+  // This handles common scenarios like WiFi → cellular network switches
+  if (entry.ip !== undefined && ip !== undefined && entry.ip === ip) {
+    score += 5; // Bonus for IP match
   }
 
   // User Agent: must match if both present, otherwise return 0
@@ -605,36 +623,52 @@ function matchWithAppUserAgent(
   appUserAgent: string,
   browserUserAgent: string,
 ): number {
-  const normalize = (str: string) =>
-    str
-      .toLowerCase()
-      .split(/[\s,;()\/]+/)
-      .filter(Boolean);
+  // Simplified approach: focus on core device model matching
+  // This reduces complexity and false negatives
 
-  const modelParts = normalize(deviceModel);
   const appUA = appUserAgent.toLowerCase();
   const browserUA = browserUserAgent.toLowerCase();
+  const model = deviceModel.toLowerCase();
 
   let score = 0;
 
-  // deviceModel in browserUA
-  if (modelParts.some((part) => browserUA.includes(part))) {
-    score += 2;
+  // Primary check: device model appears in browser user agent
+  // This is the most reliable signal for device matching
+  if (model && browserUA.includes(model)) {
+    score += 3; // Higher base score for reliable match
   }
 
-  // deviceModel in appUA
-  if (modelParts.some((part) => appUA.includes(part))) {
-    score += 2;
+  // Secondary check: look for model parts if full model doesn't match
+  // Handle cases where model might be formatted differently
+  if (score === 0 && model) {
+    const modelParts = model
+      .split(/[\s\-_]+/)
+      .filter((part) => part.length > 2);
+    if (modelParts.some((part) => browserUA.includes(part))) {
+      score += 2;
+    }
   }
 
-  // appUA overlaps with browserUA
-  const appTokens = normalize(appUserAgent);
-  const browserTokens = normalize(browserUserAgent);
-  const shared = appTokens.filter((token) => browserTokens.includes(token));
-  if (shared.length >= 2) {
-    score += 2;
-  } else if (shared.length === 1) {
-    score += 1;
+  // Tertiary check: basic user agent overlap
+  // Only add if we have some device model match to avoid false positives
+  if (score > 0) {
+    // Simple check for common tokens between app and browser UA
+    const commonTokens = ['mobile', 'safari', 'webkit', 'chrome', 'version'];
+    const appTokens = appUA.split(/\s+/).filter((token) => token.length > 3);
+    const browserTokens = browserUA
+      .split(/\s+/)
+      .filter((token) => token.length > 3);
+
+    const hasCommonTokens = commonTokens.some(
+      (token) => appUA.includes(token) && browserUA.includes(token),
+    );
+
+    if (
+      hasCommonTokens ||
+      appTokens.some((token) => browserTokens.includes(token))
+    ) {
+      score += 1;
+    }
   }
 
   return score;
@@ -644,21 +678,46 @@ function osVersionMatches(
   osVersionFromApp: string,
   browserUserAgent: string,
 ): number {
-  const normalizedAppVersion = osVersionFromApp.replace('.', '_'); // 17.4 -> 17_4
-  const major = osVersionFromApp.split('.')[0]; // 17
+  // Simplified OS version matching - focus on major version compatibility
+  // This reduces false negatives from minor version differences
 
-  const browserUA = browserUserAgent.toLowerCase();
-
-  if (browserUA.includes(normalizedAppVersion)) {
-    return 2; // full match
+  if (!osVersionFromApp || !browserUserAgent) {
+    return 0;
   }
 
-  if (
-    browserUA.includes(`ios ${major}`) ||
-    browserUA.includes(`android ${major}`) ||
-    browserUA.includes(`${major}_`)
-  ) {
-    return 1; // partial match on major version
+  const browserUA = browserUserAgent.toLowerCase();
+  const appVersion = osVersionFromApp.toLowerCase();
+
+  // Extract major version number (e.g., "17.4.1" -> "17")
+  const majorVersionMatch = appVersion.match(/^(\d+)/);
+  if (!majorVersionMatch) {
+    return 0;
+  }
+
+  const majorVersion = majorVersionMatch[1];
+
+  // Check for exact version match (most reliable)
+  if (browserUA.includes(appVersion)) {
+    return 3;
+  }
+
+  // Check for version with underscore format (iOS format: 17_4)
+  const underscoreVersion = appVersion.replace(/\./g, '_');
+  if (browserUA.includes(underscoreVersion)) {
+    return 3;
+  }
+
+  // Check for major version compatibility (more tolerant)
+  // This helps with minor version differences that shouldn't block matches
+  const majorVersionPatterns = [
+    `ios ${majorVersion}`,
+    `android ${majorVersion}`,
+    `${majorVersion}_`,
+    `os ${majorVersion}`,
+  ];
+
+  if (majorVersionPatterns.some((pattern) => browserUA.includes(pattern))) {
+    return 2;
   }
 
   return 0;
