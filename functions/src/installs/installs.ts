@@ -372,8 +372,8 @@ async function searchByHeuristics(
     // Allow small negative time differences (up to 30 seconds) to account for
     // clock synchronization issues, network delays, and quick app installations
     const timeDifference =
-      fingerprint.appInstallationTime - match.match.createdAt.seconds;
-    return match.score > 0 && timeDifference > -30;
+      fingerprint.appInstallationTime - match.match.createdAt.seconds * 1000; // Convert seconds to milliseconds
+    return match.score > 0 && timeDifference > -30000; // -30 seconds in milliseconds
   });
   matches = matches.sort((a, b) => b.score - a.score);
   const bestMatch = matches[0] ?? undefined;
