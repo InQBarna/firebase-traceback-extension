@@ -1,5 +1,5 @@
-import { privateInitialize } from '../src/lifecycle/initialize'
-import { Config } from '../src/config'
+import { privateInitialize } from '../src/lifecycle/initialize';
+import { Config } from '../src/config';
 import * as admin from 'firebase-admin';
 
 describe('privateInitialize', () => {
@@ -21,12 +21,12 @@ describe('privateInitialize', () => {
       admin.initializeApp();
       await expect(
         privateInitialize(true, false, config),
-      ).resolves.toBeDefined()
+      ).resolves.toBeDefined();
     },
     10000,
   );
 
-    /*
+  /*
     test.concurrent('integration test should work when createRemoteHost is false and createExample false', async () => {
         const config: Config = {
             projectID: 'iqbdemocms',
@@ -43,4 +43,4 @@ describe('privateInitialize', () => {
         await expect(privateInitialize(false, false, config)).resolves.toBeUndefined()
     }, 10000)
     */
-})
+});

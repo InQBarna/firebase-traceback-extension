@@ -1,8 +1,8 @@
 {
   "name": "firebase-traceback",
   "scripts": {
-    "lint": "eslint \"src/**/*\"",
-    "lint:fix": "eslint \"src/**/*\" --fix",
+    "lint": "eslint \"src/**/*\" \"test/**/*\"",
+    "lint:fix": "eslint \"src/**/*\" \"test/**/*\" --fix",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test:watch": "jest --watchAll",

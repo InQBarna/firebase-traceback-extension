@@ -34,11 +34,12 @@ export const private_doctor = functions
   .https.onRequest(async (req, res): Promise<void> => {
     try {
       // Calculate expected site configuration
-      const siteId = config.domain !== '' ? config.domain : `${config.projectID}-traceback`;
+      const siteId =
+        config.domain !== '' ? config.domain : `${config.projectID}-traceback`;
       const expectedSiteName = `https://${siteId}.web.app`;
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const appleAssociationURL = `${baseUrl}/.well-known/apple-app-site-association`;
-      
+
       // Initialize diagnostics
       let appleAppSiteAssociationOk = false;
       let appleAssociationError: string | undefined;
@@ -48,42 +49,56 @@ export const private_doctor = functions
 
       // Test Apple App Site Association (non-destructive)
       try {
-        functions.logger.info('Testing Apple App Site Association:', appleAssociationURL);
+        functions.logger.info(
+          'Testing Apple App Site Association:',
+          appleAssociationURL,
+        );
         const appleSiteAssociation = await axios.get(appleAssociationURL, {
           timeout: 5000,
-          headers: { 'User-Agent': 'Traceback-Doctor/1.0' }
+          headers: { 'User-Agent': 'Traceback-Doctor/1.0' },
         });
-        
+
         if (appleSiteAssociation.data && appleSiteAssociation.data.applinks) {
-          appleAppSiteAssociationOk = appleSiteAssociation.data.applinks.length > 0;
-          functions.logger.info('Apple App Site Association response:', appleSiteAssociation.data);
+          appleAppSiteAssociationOk =
+            appleSiteAssociation.data.applinks.length > 0;
+          functions.logger.info(
+            'Apple App Site Association response:',
+            appleSiteAssociation.data,
+          );
         } else {
           appleAssociationError = 'Response missing applinks property';
         }
       } catch (error: any) {
-        appleAssociationError = error.message || 'Failed to fetch Apple App Site Association';
-        functions.logger.warn('Apple App Site Association error:', appleAssociationError);
+        appleAssociationError =
+          error.message || 'Failed to fetch Apple App Site Association';
+        functions.logger.warn(
+          'Apple App Site Association error:',
+          appleAssociationError,
+        );
       }
 
       // Attempt initialization (READ-ONLY - no creation/modification)
       try {
         functions.logger.info('Attempting read-only initialization check...');
         initializationAttempted = true;
-        
+
         // Call with createRemoteHost=false, createSampleLink=false for read-only check
         initResult = await privateInitialize(false, false, config);
-        
-        functions.logger.info('Read-only initialization completed successfully:', initResult);
+
+        functions.logger.info(
+          'Read-only initialization completed successfully:',
+          initResult,
+        );
       } catch (error: any) {
         initializationError = error.message || 'Unknown initialization error';
         functions.logger.error('Initialization failed:', initializationError);
-        
+
         // Provide fallback result
         initResult = {
           siteAlreadyExisted: false,
           siteCreatedViaAPI: false,
           siteName: expectedSiteName,
-          error: initializationError
+          error: initializationError,
         };
       }
 
@@ -97,7 +112,7 @@ export const private_doctor = functions
           location: config.location,
           iosTeamID: config.iosTeamID,
           iosBundleID: config.iosBundleID,
-          androidBundleID: config.androidBundleID
+          androidBundleID: config.androidBundleID,
         },
         diagnostics: {
           siteId: siteId,
@@ -106,21 +121,21 @@ export const private_doctor = functions
           appleAssociationURL: appleAssociationURL,
           appleAssociationError: appleAssociationError,
           initializationAttempted: initializationAttempted,
-          initializationError: initializationError
-        }
+          initializationError: initializationError,
+        },
       };
 
       functions.logger.info('Doctor check completed:', doctorResult);
       res.status(200).json(doctorResult);
-      
     } catch (error: any) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       functions.logger.error('Doctor endpoint error:', errorMessage, error);
-      
+
       res.status(500).json({
         error: 'Doctor check failed',
         message: errorMessage,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   });

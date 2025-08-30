@@ -7,7 +7,7 @@ export interface ExtensionInitializationResult {
   siteAlreadyExisted: boolean;
   siteCreatedViaAPI: boolean;
   siteName: string;
-  error: string | undefined
+  error: string | undefined;
 }
 
 export const privateInitialize = async function (
@@ -31,7 +31,7 @@ export const privateInitialize = async function (
         siteAlreadyExisted: true,
         siteCreatedViaAPI: false,
         siteName: siteName,
-        error: undefined
+        error: undefined,
       } as ExtensionInitializationResult;
     }
 
@@ -60,7 +60,8 @@ export const privateInitialize = async function (
         siteAlreadyExisted: true,
         siteCreatedViaAPI: false,
         siteName: siteName,
-        error: 'Could not create a new site version via api, this usually means site already created',
+        error:
+          'Could not create a new site version via api, this usually means site already created',
       } as ExtensionInitializationResult;
     }
 

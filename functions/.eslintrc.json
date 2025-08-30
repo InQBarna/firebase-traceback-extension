@@ -5,22 +5,10 @@
     "plugin:prettier/recommended"
   ],
   "rules": {
-    "node/no-unpublished-import": [
-      "error",
-      {
-        "allowModules": ["firebase-functions-test", "dotenv", "node-fetch"]
-      }
-    ],
-    "node/no-unpublished-require": [
-      "error",
-      {
-        "allowModules": ["firebase-functions-test", "dotenv", "node-fetch"]
-      }
-    ],
     "no-useless-catch": "off",
-    "node/no-extraneous-import": "off",
     "eqeqeq": "off",
     "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/ban-ts-ignore": "off"
+    "@typescript-eslint/ban-ts-ignore": "off",
+    "@typescript-eslint/no-unused-vars": "warn"
   }
 }

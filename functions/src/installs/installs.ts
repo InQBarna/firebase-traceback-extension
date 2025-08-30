@@ -562,7 +562,7 @@ export function findMatchingInstall(
   // Split into primary (en) and secondary (us, gb, etc.)
   const entryLangParts = normalizedEntryLang.split('-');
   const deviceLangParts = normalizedDeviceLang.split('-');
-  
+
   // Primary language code must match (en, es, fr, etc.)
   if (entryLangParts[0] !== deviceLangParts[0]) {
     return 0;
@@ -570,11 +570,15 @@ export function findMatchingInstall(
 
   // ✅ Resolution, timezone, primary language matched
   let score = 5;
-  
+
   // High bonus score for exact language match (including region)
   if (normalizedEntryLang === normalizedDeviceLang) {
     score += 3; // Exact match bonus
-  } else if (entryLangParts[1] && deviceLangParts[1] && entryLangParts[1] === deviceLangParts[1]) {
+  } else if (
+    entryLangParts[1] &&
+    deviceLangParts[1] &&
+    entryLangParts[1] === deviceLangParts[1]
+  ) {
     score += 2; // Same region bonus
   } else if (entryLangParts[1] && deviceLangParts[1]) {
     // Different regions but both specified - small penalty but still match
