@@ -5,37 +5,122 @@ import {
   ExtensionInitializationResult,
 } from './lifecycle/initialize';
 import axios from 'axios';
-import { AppleAppSizeAssociationDTO } from './wellknown/ios';
 
 export interface DoctorResult {
   extensionInitialization: ExtensionInitializationResult;
   appleAppSizeAssociationOk: boolean;
+  configuration: {
+    domain: string;
+    projectID: string;
+    extensionID: string;
+    location: string;
+    iosTeamID: string;
+    iosBundleID: string;
+    androidBundleID: string;
+  };
+  diagnostics: {
+    siteId: string;
+    expectedSiteName: string;
+    hostingURL: string;
+    appleAssociationURL: string;
+    appleAssociationError?: string;
+    initializationAttempted: boolean;
+    initializationError?: string;
+  };
 }
 
 export const private_doctor = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
     try {
-      const initResult = await privateInitialize(true, true, config);
-      const baseUrl = `${req.protocol}://${req.get('host')}}`;
-      let appleAppSiteAssociationOk: boolean
+      // Calculate expected site configuration
+      const siteId = config.domain !== '' ? config.domain : `${config.projectID}-traceback`;
+      const expectedSiteName = `https://${siteId}.web.app`;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const appleAssociationURL = `${baseUrl}/.well-known/apple-app-site-association`;
+      
+      // Initialize diagnostics
+      let appleAppSiteAssociationOk = false;
+      let appleAssociationError: string | undefined;
+      let initializationAttempted = false;
+      let initializationError: string | undefined;
+      let initResult: ExtensionInitializationResult;
+
+      // Test Apple App Site Association (non-destructive)
       try {
-        const getUrl = `${baseUrl}/.well-known/apple-app-site-association`;
-        console.log(getUrl);
-        const appleSiteAssociation = (await axios.get(
-          getUrl,
-        )) as AppleAppSizeAssociationDTO;
-        appleAppSiteAssociationOk = appleSiteAssociation.applinks.length > 0;
-      } catch {
-        appleAppSiteAssociationOk = false;
+        functions.logger.info('Testing Apple App Site Association:', appleAssociationURL);
+        const appleSiteAssociation = await axios.get(appleAssociationURL, {
+          timeout: 5000,
+          headers: { 'User-Agent': 'Traceback-Doctor/1.0' }
+        });
+        
+        if (appleSiteAssociation.data && appleSiteAssociation.data.applinks) {
+          appleAppSiteAssociationOk = appleSiteAssociation.data.applinks.length > 0;
+          functions.logger.info('Apple App Site Association response:', appleSiteAssociation.data);
+        } else {
+          appleAssociationError = 'Response missing applinks property';
+        }
+      } catch (error: any) {
+        appleAssociationError = error.message || 'Failed to fetch Apple App Site Association';
+        functions.logger.warn('Apple App Site Association error:', appleAssociationError);
       }
-      res.status(200).send({
+
+      // Attempt initialization (READ-ONLY - no creation/modification)
+      try {
+        functions.logger.info('Attempting read-only initialization check...');
+        initializationAttempted = true;
+        
+        // Call with createRemoteHost=false, createSampleLink=false for read-only check
+        initResult = await privateInitialize(false, false, config);
+        
+        functions.logger.info('Read-only initialization completed successfully:', initResult);
+      } catch (error: any) {
+        initializationError = error.message || 'Unknown initialization error';
+        functions.logger.error('Initialization failed:', initializationError);
+        
+        // Provide fallback result
+        initResult = {
+          siteAlreadyExisted: false,
+          siteCreatedViaAPI: false,
+          siteName: expectedSiteName,
+          error: initializationError
+        };
+      }
+
+      const doctorResult: DoctorResult = {
         extensionInitialization: initResult,
         appleAppSizeAssociationOk: appleAppSiteAssociationOk,
-      } as DoctorResult);
-    } catch (error) {
-      const errorMessage = error === Error ? (error as Error).message : error;
-      functions.logger.error('Initialization error:', errorMessage);
-      res.status(500).send('Internal Server Error');
+        configuration: {
+          domain: config.domain,
+          projectID: config.projectID,
+          extensionID: config.extensionID,
+          location: config.location,
+          iosTeamID: config.iosTeamID,
+          iosBundleID: config.iosBundleID,
+          androidBundleID: config.androidBundleID
+        },
+        diagnostics: {
+          siteId: siteId,
+          expectedSiteName: expectedSiteName,
+          hostingURL: baseUrl,
+          appleAssociationURL: appleAssociationURL,
+          appleAssociationError: appleAssociationError,
+          initializationAttempted: initializationAttempted,
+          initializationError: initializationError
+        }
+      };
+
+      functions.logger.info('Doctor check completed:', doctorResult);
+      res.status(200).json(doctorResult);
+      
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      functions.logger.error('Doctor endpoint error:', errorMessage, error);
+      
+      res.status(500).json({
+        error: 'Doctor check failed',
+        message: errorMessage,
+        timestamp: new Date().toISOString()
+      });
     }
   });

@@ -1,6 +1,6 @@
 {
   "functions": {
-    "source": "functions"
+    "source": ".."
   },
   "emulators": {
     "functions": {
@@ -20,7 +20,7 @@
     "singleProjectMode": true
   },
   "extensions": {
-    "traceback": "../../../"
+    "traceback": "../../"
   },
   "hosting": {
     "public": "public",
@@ -33,8 +33,8 @@
     "rewrites": [
       {
         "source": "**",
-        "function": "ext-traceback-dynamichostingcontent",
-        "region": "europe-west1"
+        "function": "dynamichostingcontent",
+        "region": "us-central1"
       }
     ]
   }
