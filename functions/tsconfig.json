@@ -6,9 +6,10 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2021"
+    "target": "es2021",
+    "lib": ["es2021"]
   },
   "compileOnSave": true,
-  "include": ["src", "test"],
+  "include": ["src"],
   "types": ["jest", "node"]
 }

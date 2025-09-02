@@ -82,8 +82,8 @@ export const private_doctor = functions
         functions.logger.info('Attempting read-only initialization check...');
         initializationAttempted = true;
 
-        // Call with createRemoteHost=false, createSampleLink=false for read-only check
-        initResult = await privateInitialize(false, false, config);
+        // Call with createRemoteHost=false, createSampleLink=true to create example dynamic link
+        initResult = await privateInitialize(false, true, config);
 
         functions.logger.info(
           'Read-only initialization completed successfully:',

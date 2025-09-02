@@ -40,7 +40,13 @@ export const link_preview = async function (
   if (!linkFound) {
     source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
   } else {
-    const dynamicLink = linkSnapshot.docs[0].data() as DynamicLink;
+    // If followLink is available, redirect with link parameter
+    const dynamicLink = (await linkSnapshot.docs[0].data()) as DynamicLink;
+    const currentUrl = new URL(fullUrl);
+    if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
+      currentUrl.searchParams.set('link', dynamicLink.followLink);
+      return res.redirect(302, currentUrl.toString());
+    }
     source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);
   }
 

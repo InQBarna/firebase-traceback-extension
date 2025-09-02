@@ -59,11 +59,10 @@ exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
 const app = express();
 
 //
-// # Doctor
+// # Doctor (exported as standalone function)
 //
 
 exports.doctor = private_doctor;
-app.get('/v1_doctor', private_doctor);
 
 //
 // # Post install cloud function endpoint
@@ -113,6 +112,9 @@ app.use('/images', express.static(path.join(__dirname, './assets/images')));
 
 // ## Log device installs / heuristics when opening the app in browser (pre-install)
 app.post('/v1_preinstall_save_link', private_v1_preinstall_save_link);
+
+// ## Doctor endpoint
+app.get('/v1_doctor', private_doctor);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {

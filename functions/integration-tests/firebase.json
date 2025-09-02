@@ -1,6 +1,6 @@
 {
   "functions": {
-    "source": ".."
+    "source": "functions"
   },
   "emulators": {
     "functions": {
@@ -22,20 +22,23 @@
   "extensions": {
     "traceback": "../../"
   },
-  "hosting": {
-    "public": "public",
-    "appAssociation": "NONE",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "function": "dynamichostingcontent",
-        "region": "us-central1"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "site": "iqbdemocms-traceback",
+      "public": "public",
+      "appAssociation": "NONE",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "function": "ext-traceback-dynamichostingcontent",
+          "region": "europe-west1"
+        }
+      ]
+    }
+  ]
 }
