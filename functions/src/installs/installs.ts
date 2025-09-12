@@ -17,7 +17,6 @@ export const deviceFingerprintSchema = Joi.object({
   osVersion: Joi.string().required(),
   sdkVersion: Joi.string().required(),
   uniqueMatchLinkToCheck: Joi.string().uri().optional(),
-  darkLaunchDetectedLink: Joi.string().uri().optional(),
   device: Joi.object({
     deviceModelName: Joi.string().required(),
     languageCode: Joi.string().required(),
@@ -43,8 +42,6 @@ enum AnalyticsType {
   HEURISTICS_NOT_FOUND = 'HEURISTICS_NOT_FOUND',
   HEURISTICS_MULTIPLE_MATCHES = 'HEURISTICS_MULTIPLE_MATCHES',
   HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE = 'HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE',
-  DARK_LAUNCH_MATCH = 'DARK_LAUNCH_MATCH',
-  DARK_LAUNCH_MISMATCH = 'DARK_LAUNCH_MISMATCH',
   DEBUG_HEURISTICS_SUCCESS = 'DEBUG_HEURISTICS_SUCCESS',
   DEBUG_HEURISTICS_FAILURE = 'DEBUG_HEURISTICS_FAILURE',
 }
@@ -60,12 +57,6 @@ interface PostInstallResult {
   uniqueMatch: boolean | undefined;
   analytics: AnalyticsMessage[];
   uuld: string | undefined;
-}
-
-interface LinkExtraction {
-  dynamicLinkUrl: URL;
-  tracebackId: string | undefined;
-  dynamicLinkUrlWithoutTracebackId: URL;
 }
 
 export const private_v1_postinstall_search_link = functions
@@ -91,13 +82,7 @@ export const private_v1_postinstall_search_link = functions
         req.headers['x-forwarded-for']?.toString().split(',')[0].trim() ??
         req.socket.remoteAddress;
       const userAgent = req.headers['user-agent'] || undefined;
-      const darkLaunchDetectedLink = fingerprint.darkLaunchDetectedLink;
-      const result = await searchPostInstall(
-        fingerprint,
-        ip,
-        userAgent,
-        darkLaunchDetectedLink,
-      );
+      const result = await searchPostInstall(fingerprint, ip, userAgent);
 
       // 2.- ANALYTICS
       for (let index = 0; index < result.analytics.length; index++) {
@@ -135,18 +120,6 @@ export const private_v1_postinstall_search_link = functions
             break;
           case AnalyticsType.PASTEBOARD_NOT_FOUND:
             functions.logger.warn(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.DARK_LAUNCH_MATCH:
-            functions.logger.info(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.DARK_LAUNCH_MISMATCH:
-            functions.logger.error(
               element.type.toString() + ': ' + element.message,
               JSON.stringify({ debugObject: element.debugObject }),
             );
@@ -244,12 +217,8 @@ async function searchPostInstall(
   fingerprint: DeviceFingerprint,
   ip: string | undefined,
   userAgent: string | undefined,
-  darkLaunchDetectedLink: string | undefined,
 ): Promise<PostInstallResult> {
   let result: PostInstallResult;
-
-  // Kept for reference
-  // let isNotFoundFBDL = darkLaunchDetectedLink !== undefined && darkLaunchDetectedLink.indexOf('No%20pre%2Dinstall%20link%20matched%20for%20this%20device') !== -1;
 
   const db = getFirestore();
   const collection = db
@@ -270,80 +239,54 @@ async function searchPostInstall(
       ip,
       userAgent,
     );
-    if (
-      result.foundEntry === undefined &&
-      heuristicsSearch.foundEntry !== result.foundEntry
-    ) {
-      result.analytics.push({
-        type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
-        message:
-          'heuristisc would have returned different result than current successfull unique search',
-        debugObject: {
-          unique: result.foundEntry,
-          heuristics: heuristicsSearch.foundEntry,
-        },
-      });
-    } else {
-      result.analytics.push({
-        type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
-        message:
-          'heuristisc would have returned the same result than unique search, hurray!',
-        debugObject: undefined,
-      });
-    }
-  } else {
-    result = await searchByHeuristics(collection, fingerprint, ip, userAgent);
-  }
 
-  if (darkLaunchDetectedLink !== undefined) {
     if (result.foundEntry === undefined) {
-      result.analytics.push({
-        type: AnalyticsType.DARK_LAUNCH_MISMATCH,
-        message: 'dark launch mismatch: no entry found',
-        debugObject: {
-          darkLaunch: darkLaunchDetectedLink,
-        },
-      });
-    } else {
-      const foundLink = extractTracebackIdFromDynamicLink(
-        result.foundEntry.clipboard,
-      );
-      if (foundLink === undefined) {
+      // Unique search failed
+      if (heuristicsSearch.foundEntry !== undefined) {
         result.analytics.push({
-          type: AnalyticsType.DARK_LAUNCH_MISMATCH,
-          message:
-            'dark launch mismatch / system error: found entry did not include link= param',
+          type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
+          message: 'unique search failed but heuristics would have succeeded',
           debugObject: {
-            darkLaunch: darkLaunchDetectedLink,
-            result: result.foundEntry,
-          },
-        });
-      } else if (
-        foundLink.dynamicLinkUrlWithoutTracebackId.toString() !==
-          darkLaunchDetectedLink &&
-        foundLink.dynamicLinkUrl.toString() !== darkLaunchDetectedLink
-      ) {
-        result.analytics.push({
-          type: AnalyticsType.DARK_LAUNCH_MISMATCH,
-          message: 'dark launch mismatch',
-          debugObject: {
-            darkLaunch: darkLaunchDetectedLink,
-            link: foundLink.dynamicLinkUrlWithoutTracebackId,
-            result: result.foundEntry,
+            unique: result.foundEntry,
+            heuristics: heuristicsSearch.foundEntry,
           },
         });
       } else {
         result.analytics.push({
-          type: AnalyticsType.DARK_LAUNCH_MATCH,
-          message: 'matched dark launch',
+          type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
+          message:
+            'unique search failed and heuristics also failed - consistent results',
           debugObject: {
-            darkLaunch: darkLaunchDetectedLink,
-            link: result.foundEntry,
-            result: result.foundEntry,
+            unique: result.foundEntry,
+            heuristics: heuristicsSearch.foundEntry,
+          },
+        });
+      }
+    } else {
+      // Unique search succeeded
+      if (heuristicsSearch.foundEntry === undefined) {
+        result.analytics.push({
+          type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
+          message: 'unique search succeeded but heuristics would have failed',
+          debugObject: {
+            unique: result.foundEntry,
+            heuristics: heuristicsSearch.foundEntry,
+          },
+        });
+      } else {
+        result.analytics.push({
+          type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
+          message:
+            'unique search succeeded and heuristics also succeeded - consistent results',
+          debugObject: {
+            unique: result.foundEntry,
+            heuristics: heuristicsSearch.foundEntry,
           },
         });
       }
     }
+  } else {
+    result = await searchByHeuristics(collection, fingerprint, ip, userAgent);
   }
 
   return result;
@@ -434,55 +377,18 @@ async function searchByClipboardContent(
     .get();
 
   if (snapshot.empty) {
-    const tracebackIdForDarkLaunch = extractTracebackIdFromDynamicLink(
-      uniqueMatchLinkToCheck,
-    );
-    if (
-      tracebackIdForDarkLaunch?.tracebackId === undefined ||
-      tracebackIdForDarkLaunch?.tracebackId === ''
-    ) {
-      return {
-        foundEntry: undefined,
-        uniqueMatch: false,
-        analytics: [
-          {
-            type: AnalyticsType.PASTEBOARD_NOT_FOUND,
-            message:
-              'no match found with pasteboard content, and could not find _tracebackid in url',
-            debugObject: fingerprint.uniqueMatchLinkToCheck,
-          },
-        ],
-        uuld: undefined,
-      };
-    } else {
-      console.info(
-        `Searching by docId (_tracebackid) ${tracebackIdForDarkLaunch.tracebackId}`,
-      );
-      const docRef = collection.doc(tracebackIdForDarkLaunch.tracebackId);
-      const tidSnapshot = await docRef.get();
-      if (!tidSnapshot.exists) {
-        return {
-          foundEntry: undefined,
-          uniqueMatch: false,
-          analytics: [
-            {
-              type: AnalyticsType.PASTEBOARD_NOT_FOUND,
-              message:
-                'no match found with pasteboard content neither by using dark launch _tracebackid',
-              debugObject: fingerprint.uniqueMatchLinkToCheck,
-            },
-          ],
-          uuld: undefined,
-        };
-      } else {
-        return {
-          foundEntry: tidSnapshot.data() as SavedDeviceHeuristics,
-          uniqueMatch: true,
-          analytics: [],
-          uuld: tidSnapshot.id,
-        };
-      }
-    }
+    return {
+      foundEntry: undefined,
+      uniqueMatch: false,
+      analytics: [
+        {
+          type: AnalyticsType.PASTEBOARD_NOT_FOUND,
+          message: 'no match found with pasteboard content',
+          debugObject: fingerprint.uniqueMatchLinkToCheck,
+        },
+      ],
+      uuld: undefined,
+    };
   } else {
     const firstDoc = await snapshot.docs[0].data();
     const analytics: AnalyticsMessage[] = [];
@@ -499,34 +405,6 @@ async function searchByClipboardContent(
       analytics: analytics,
       uuld: snapshot.docs[0].id,
     };
-  }
-}
-
-function extractTracebackIdFromDynamicLink(
-  dynamicLinkUrl: string,
-): LinkExtraction | undefined {
-  try {
-    const outerUrl = new URL(dynamicLinkUrl);
-    const encodedLinkParam = outerUrl.searchParams.get('link');
-    if (!encodedLinkParam) {
-      return undefined;
-    }
-
-    // If the "link" parameter is itself a URL, it may be double-encoded
-    const decodedOnce = decodeURIComponent(encodedLinkParam);
-    const nestedUrl = new URL(decodedOnce);
-
-    const tracebackId = nestedUrl.searchParams.get('_tracebackid');
-    const copieddUrl = nestedUrl;
-    copieddUrl.searchParams.delete('_tracebackid');
-    return {
-      dynamicLinkUrl: nestedUrl,
-      tracebackId: tracebackId,
-      dynamicLinkUrlWithoutTracebackId: copieddUrl,
-    } as LinkExtraction;
-  } catch (err) {
-    // console.error('Failed to extract _tracebackid:', err);
-    return undefined;
   }
 }
 

@@ -188,75 +188,8 @@
       clipboard: urlWithHeuristics
     };
 
-    async function darkLaunch() {
-      const response = await fetch('/v1_preinstall_save_link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(heuristicsWithClipboard)
-      });
-      const result = await response.json();
 
-      // example when {{darkLaunchDomain}} is fmppre.page.link
-      // https://fmppre.page.link/?link=https://familymealplanner.inqbarna.com/welcome
-      // isi=1620301321
-      // ibi=com.inqbarna.familymealplan
-      // cid=5499816327415635564
-      // _osl=https://fmppre.page.link/welcome
-      // _icp=1
 
-      const currentDomain = window.location.host;
-      const currentPort = window.location.port;
-      const currentURL = window.location.href;
-      const newLocation = currentURL
-        .replace('/_empty_?', '/?')
-        .replace('https://' + currentDomain, 'https://' +'{{darkLaunchDomain}}')
-        .replace('http://' + currentDomain, 'https://' +'{{darkLaunchDomain}}');
-
-      if (currentPort.length > 0) {
-        const newLocationWithoutPortForLocalDebug = newLocation
-          .replace('{{darkLaunchDomain}}:' + currentPort + '/', '');
-        const newLocationWithTracebackId= addTracebackIdQueryParam(
-          new URL(newLocationWithoutPortForLocalDebug),
-          result.installId
-        );
-        window.location.href = newLocationWithTracebackId.toString();
-        return;
-      }
-      const newLocationWithTracebackId = addTracebackIdQueryParam(
-        new URL(newLocation), 
-        result.installId
-      );
-      window.location.href = newLocationWithTracebackId.toString();
-    }
-
-    function addTracebackIdQueryParam(url, tracebackId) {
-      const originalLinkParam = url.searchParams.get("link");
-
-      if (!originalLinkParam) {
-        console.warn("No 'link' parameter found in URL.");
-        return url;
-      }
-
-      // Decode the original link
-      const decodedLink = decodeURIComponent(originalLinkParam);
-      let nestedUrl = new URL(decodedLink);
-
-      // Add _tracebackid to its query params
-      nestedUrl.searchParams.set("_tracebackid", tracebackId);
-
-      // Re-encode and update the outer URL
-      let newUrl = url;
-      newUrl.searchParams.set("link", nestedUrl.toString());
-
-      return newUrl;
-    }
-
-    if ('{{darkLaunchDomain}}' !== '') {
-      document.body.style.display = 'none';
-      await darkLaunch();
-    }
 
     document.getElementById("installLink").addEventListener("click", async (e) => {
 

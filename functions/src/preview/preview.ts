@@ -155,7 +155,6 @@ async function getDynamicLinkHTMLResponse(
         ? linkInfo.image
         : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''),
     )
-    .replaceAll('{{darkLaunchDomain}}', config.darkLaunchDomain ?? '')
     .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
     .replaceAll(
       '{{app_description}}',

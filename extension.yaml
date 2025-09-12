@@ -193,17 +193,6 @@ params:
     required: false
     immutable: true
 
-  - param: DARK_LAUNCHING_FB_DOMAIN
-    label: Configure to dark launch an existing firebase dynamic links domain
-    description: >
-      The domain name that currenly serves your firebase dynamic links. 
-      Leave it empty, only fill it to enable dark launch of traceback 
-      and using existing firebase dynamic links
-    type: string
-    validationRegex: ^([0-9a-zA-Z_.-]*)\.page\.link$
-    validationErrorMessage: Invalid domain format, should be XXX.page.link.
-    required: false
-    immutable: false
 
 externalServices:
   - name: Appstore connect listing

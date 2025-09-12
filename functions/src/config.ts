@@ -8,7 +8,6 @@ export interface Config {
   androidSHA?: string;
   androidScheme?: string;
   domain: string;
-  darkLaunchDomain?: string;
 }
 
 export const config: Config = {
@@ -21,5 +20,4 @@ export const config: Config = {
   androidSHA: process.env.ANDROID_SHA || '',
   androidScheme: process.env.ANDROID_SCHEME || '',
   domain: process.env.DOMAIN || '',
-  darkLaunchDomain: process.env.DARK_LAUNCHING_FB_DOMAIN || '',
 };
