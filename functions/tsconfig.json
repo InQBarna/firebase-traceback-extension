@@ -7,9 +7,9 @@
     "sourceMap": true,
     "strict": true,
     "target": "es2021",
-    "lib": ["es2021"]
+    "lib": ["es2021"],
+    "types": ["jest", "node"]
   },
   "compileOnSave": true,
-  "include": ["src"],
-  "types": ["jest", "node"]
+  "include": ["src", "test"]
 }

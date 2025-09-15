@@ -1,4 +1,11 @@
 {
-  "mochaExplorer.files": "test/**/*.ts",
-  "mochaExplorer.require": "ts-node/register"
+  "jest.jestCommandLine": "npm test",
+  "jest.rootPath": "functions",
+  "jest.disabledWorkspaceFolders": [],
+  "jest.coverageFormatter": "DefaultFormatter",
+  "jest.nodeEnv": {
+    "NODE_ENV": "test"
+  },
+  "testing.automaticallyOpenPeekView": "never",
+  "testing.automaticallyOpenTestResults": "neverOpen",
 }

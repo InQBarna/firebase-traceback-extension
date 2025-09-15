@@ -9,9 +9,7 @@ if (admin.apps.length === 0) {
   });
 }
 
-const HOST_BASE_URL =
-  process.env.TRACEBACK_API_URL ??
-  'http://localhost:5002/demo-traceback/us-central1/dynamichostingcontent';
+const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'http://127.0.0.1:5002';
 // 'https://familymealplan-pre-traceback.web.app';
 // const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdvtest-fab2a-traceback.web.app';
 // const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdv-traceback.web.app';
@@ -302,8 +300,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintTooEarly);
 
     expect(matchResponse.statusCode).toBe(200);
-    // TODO: This test has timing issues in emulator - core functionality works
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should be 'none' but emulator has timing edge cases
+    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should fail due to timing being outside tolerance window
   });
 
   // Test 3: User Agent variations - different formats but same device
