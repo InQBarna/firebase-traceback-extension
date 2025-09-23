@@ -53,10 +53,30 @@ const getTestFingerprint = () => ({
   },
 });
 
-// Note: Database cleanup is not possible in emulator due to permissions
-// Instead, tests use unique data combinations to avoid conflicts
+// Helper function to clean up all test data using the doctor endpoint
+const cleanupAllInstallations = async () => {
+  try {
+    const response = await request(HOST_BASE_URL)
+      .get('/v1_doctor?cleanupInstalls=true');
+
+    if (response.statusCode === 200 && response.body.cleanup) {
+      console.log(`Cleanup completed: deleted ${response.body.cleanup.deletedCount} installation records`);
+      return response.body.cleanup.deletedCount;
+    } else {
+      console.warn('Cleanup failed:', response.body);
+      return 0;
+    }
+  } catch (error) {
+    console.warn('Failed to cleanup installations:', error);
+    return 0;
+  }
+};
 
 describe('TraceBack API Integration', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
   test('should store and retrieve a fingerprint', async () => {
     const testId = generateUniqueTestId();
     const uniqueHeuristics = {
@@ -91,7 +111,18 @@ describe('TraceBack API Integration', () => {
 });
 
 describe('TraceBack API Integration', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
   test('should store and retrieve a fingerprint when no clipboard', async () => {
+    const uniqueHeuristics = {
+      ...getTestHeuristics(),
+      screenWidth: 393, // Unique resolution for this test
+      screenHeight: 852,
+      timezone: 'America/New_York', // Unique timezone
+    };
+
     // 1. Send to /v1_preinstall_save_link
     const storeResponse = await request(HOST_BASE_URL)
       .post('/v1_preinstall_save_link')
@@ -99,7 +130,7 @@ describe('TraceBack API Integration', () => {
         'User-Agent',
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
       )
-      .send(getTestHeuristics());
+      .send(uniqueHeuristics);
 
     console.log(storeResponse);
     expect(storeResponse.statusCode).toBe(200);
@@ -107,19 +138,31 @@ describe('TraceBack API Integration', () => {
     expect(storeResponse.body.installId).toBeDefined();
 
     // 2. Query with /v1_postinstall_search_link
-    const fingerPrintNoClipboard: DeviceFingerprint = getTestFingerprint();
-    fingerPrintNoClipboard.uniqueMatchLinkToCheck = undefined;
+    const fingerPrintNoClipboard: DeviceFingerprint = {
+      ...getTestFingerprint(),
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...getTestFingerprint().device,
+        screenResolutionWidth: 393, // Match the stored resolution
+        screenResolutionHeight: 852,
+        timezone: 'America/New_York', // Match the stored timezone
+      },
+    };
     const matchResponse = await request(HOST_BASE_URL)
       .post('/v1_postinstall_search_link')
       .set('User-Agent', 'iqbdemocms/1.0 (iOS 17.4; iPhone15,5)')
       .send(fingerPrintNoClipboard);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous');
+    expect(matchResponse.body.match_type).toBe('heuristics');
   });
 });
 
 describe('TraceBack API Integration', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
   test('should store and retrieve an invalid fingerprint if different language', async () => {
     // Use unique screen resolution and timezone to avoid conflicts with existing data
     const uniqueTestId = generateUniqueTestId();
@@ -198,36 +241,63 @@ const getTestFingerprintMissingKey = () => ({
 });
 
 describe('TraceBack API Integration corner case', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
   test('missing fingerPrint Key', async () => {
+    const uniqueHeuristics = {
+      ...getTestHeuristics(),
+      screenWidth: 414, // Unique resolution for this test
+      screenHeight: 896,
+      timezone: 'Asia/Tokyo', // Unique timezone
+    };
+
     // 1. Send to /v1_preinstall_save_link
     const storeResponse = await request(HOST_BASE_URL)
       .post('/v1_preinstall_save_link')
-      .send(getTestHeuristics());
+      .send(uniqueHeuristics);
 
     expect(storeResponse.statusCode).toBe(200);
     expect(storeResponse.body.success).toBe(true);
     expect(storeResponse.body.installId).toBeDefined();
 
     // 2. Query with /v1_postinstall_search_link
+    const uniqueFingerprint = {
+      ...getTestFingerprintMissingKey(),
+      device: {
+        ...getTestFingerprintMissingKey().device,
+        screenResolutionWidth: 414, // Match the stored resolution
+        screenResolutionHeight: 896,
+        timezone: 'Asia/Tokyo', // Match the stored timezone
+      },
+    };
     const matchResponse = await request(HOST_BASE_URL)
       .post('/v1_postinstall_search_link')
-      .send(getTestFingerprintMissingKey());
+      .send(uniqueFingerprint);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous');
+    expect(matchResponse.body.match_type).toBe('heuristics');
   });
 });
 
 // Edge Case Tests for Heuristic Search Improvements
 describe('TraceBack Heuristic Search Edge Cases', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
   // Test 1: Timing edge cases - app install very close to pre-install
   test('should match when app install time is slightly before pre-install (negative timing)', async () => {
     const currentTime = Date.now(); // Keep in milliseconds
     const testId = generateUniqueTestId();
 
-    // Create matching heuristics data
+    // Create matching heuristics data with unique identifiers
     const matchingHeuristics: DeviceHeuristics = {
       ...getTestHeuristics(),
+      screenWidth: 428, // Unique resolution for this test
+      screenHeight: 926,
+      timezone: 'Europe/Berlin', // Unique timezone
       clipboard: `http://127.0.0.1:5002/timing-test-link-${testId}`,
     };
 
@@ -245,6 +315,9 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       uniqueMatchLinkToCheck: undefined, // Force heuristic search
       device: {
         ...getTestFingerprint().device,
+        screenResolutionWidth: 428, // Match the stored resolution
+        screenResolutionHeight: 926,
+        timezone: 'Europe/Berlin', // Match the stored timezone
         languageCode: 'en-EN', // Match the stored language
         languageCodeFromWebView: 'en-EN',
       },
@@ -255,7 +328,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintWithEarlierTime);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should find match via heuristics
+    expect(matchResponse.body.match_type).toBe('heuristics'); // Should find match via heuristics
   });
 
   // Test 2: Timing edge case - beyond tolerance window
@@ -300,13 +373,16 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintTooEarly);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should fail due to timing being outside tolerance window
+    expect(matchResponse.body.match_type).toBe('none'); // Should fail due to timing being outside tolerance window
   });
 
   // Test 3: User Agent variations - different formats but same device
   test('should match with slightly different user agent formats', async () => {
     const heuristicsWithUA: DeviceHeuristics = {
       ...getTestHeuristics(),
+      screenWidth: 375, // Unique resolution for this test
+      screenHeight: 812,
+      timezone: 'Australia/Sydney', // Unique timezone
       userAgent:
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15',
       clipboard: `http://127.0.0.1:5002/ua-test-link-${generateUniqueTestId()}`,
@@ -325,6 +401,9 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       uniqueMatchLinkToCheck: undefined,
       device: {
         ...getTestFingerprint().device,
+        screenResolutionWidth: 375, // Match the stored resolution
+        screenResolutionHeight: 812,
+        timezone: 'Australia/Sydney', // Match the stored timezone
         appVersionFromWebView: 'iqbdemocms/1.0 (iOS 17.4; iPhone15,3)', // Different format but same device
       },
     };
@@ -335,24 +414,34 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintDiffUA);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous');
+    expect(matchResponse.body.match_type).toBe('heuristics');
   });
 
   // Test 4: IP Address changes (common in mobile networks)
   test('should still match when IP address changes between pre/post install', async () => {
+    const uniqueHeuristics = {
+      ...getTestHeuristics(),
+      screenWidth: 1170, // Unique resolution for this test
+      screenHeight: 2532,
+      timezone: 'America/Los_Angeles', // Unique timezone
+      clipboard: `http://127.0.0.1:5002/ip-test-link-${generateUniqueTestId()}`,
+    };
     const storeResponse = await request(HOST_BASE_URL)
       .post('/v1_preinstall_save_link')
       .set('X-Forwarded-For', '192.168.1.100') // WiFi IP
-      .send({
-        ...getTestHeuristics(),
-        clipboard: `http://127.0.0.1:5002/ip-test-link-${generateUniqueTestId()}`,
-      });
+      .send(uniqueHeuristics);
 
     expect(storeResponse.statusCode).toBe(200);
 
     const fingerprintDiffIP: DeviceFingerprint = {
       ...getTestFingerprint(),
       uniqueMatchLinkToCheck: undefined,
+      device: {
+        ...getTestFingerprint().device,
+        screenResolutionWidth: 1170, // Match the stored resolution
+        screenResolutionHeight: 2532,
+        timezone: 'America/Los_Angeles', // Match the stored timezone
+      },
     };
 
     // Different IP (cellular network)
@@ -362,7 +451,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintDiffIP);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should still match via other signals
+    expect(matchResponse.body.match_type).toBe('heuristics'); // Should still match via other signals
   });
 
   // Test 5: Device model variations (iPhone15,3 vs iPhone 14 Pro vs similar models)
@@ -424,7 +513,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintLowerCase);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should match (case-insensitive)
+    expect(matchResponse.body.match_type).toBe('heuristics'); // Should match (case-insensitive)
   });
 
   // Test 7: Language code variations (_  vs - separator)
@@ -457,7 +546,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .send(fingerprintDash);
 
     expect(matchResponse.statusCode).toBe(200);
-    expect(matchResponse.body.match_type).toBe('ambiguous'); // Should match (normalized)
+    expect(matchResponse.body.match_type).toBe('heuristics'); // Should match (normalized)
   });
 
   // Test 8: Multiple potential matches - scoring system
@@ -465,7 +554,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
     // Create first entry with partial match
     const heuristics1: DeviceHeuristics = {
       ...getTestHeuristics(),
-      language: 'es-ES', // Different language
+      language: 'en-ES', // Different language
       clipboard: `http://127.0.0.1:5002/multi-test-link-1-${generateUniqueTestId()}`,
     };
 
@@ -562,7 +651,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     // Should still match due to major version compatibility
-    expect(matchResponse.body.match_type).toBe('ambiguous');
+    expect(matchResponse.body.match_type).toBe('heuristics');
   });
 });
 

@@ -23,7 +23,7 @@ export interface DeviceInfo {
 export interface TraceBackMatchResponse {
   deep_link_id?: string;
   match_message: string;
-  match_type: 'unique' | 'none' | 'ambiguous';
+  match_type: 'unique' | 'heuristics' | 'ambiguous' | 'none';
   request_ip_version: 'IP_V4' | 'IP_V6';
   utm_medium?: string;
   utm_source?: string;

@@ -4,12 +4,15 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "outDir": "lib",
+    "rootDir": "src",
     "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false,
     "strict": true,
     "target": "es2021",
     "lib": ["es2021"],
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
   },
   "compileOnSave": true,
-  "include": ["src", "test"]
+  "include": ["src"]
 }

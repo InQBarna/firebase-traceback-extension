@@ -1,5 +1,4 @@
 {
-  "jest.jestCommandLine": "npm test",
   "jest.rootPath": "functions",
   "jest.disabledWorkspaceFolders": [],
   "jest.coverageFormatter": "DefaultFormatter",

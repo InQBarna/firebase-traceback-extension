@@ -52,16 +52,24 @@ interface AnalyticsMessage {
   debugObject: any | undefined;
 }
 
+enum MatchType {
+  UNIQUE_CLIPBOARD = 'unique',
+  SINGLE_HEURISTICS = 'heuristics',
+  MULTIPLE_HEURISTICS = 'ambiguous',
+  NO_MATCH = 'none',
+}
+
 interface PostInstallResult {
   foundEntry: SavedDeviceHeuristics | undefined;
-  uniqueMatch: boolean | undefined;
+  matchType: MatchType;
   analytics: AnalyticsMessage[];
-  uuld: string | undefined;
+  uuid: string | undefined;
 }
 
 export const private_v1_postinstall_search_link = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
+
     if (req.method !== 'POST') {
       res.status(405).send('Method Not Allowed');
       return;
@@ -140,18 +148,29 @@ export const private_v1_postinstall_search_link = functions
       }
 
       // 3.- Remove if grabbed
-      if (result.uuld !== undefined) {
-        removeFoundPostInstall(result.uuld);
+      if (result.uuid !== undefined) {
+        removeFoundPostInstall(result.uuid);
       }
 
       // 4.- RESPONSE (+ some more analytics)
       if (result.foundEntry !== undefined) {
+        const getMatchMessage = (matchType: MatchType): string => {
+          switch (matchType) {
+            case MatchType.UNIQUE_CLIPBOARD:
+              return 'Link is uniquely matched for this device.';
+            case MatchType.SINGLE_HEURISTICS:
+              return 'Fuzzy link with this id with a single heuristics match';
+            case MatchType.MULTIPLE_HEURISTICS:
+              return 'Fuzzy link with this id with many scoring matches';
+            default:
+              return 'Unknown match type';
+          }
+        };
+
         const response: TraceBackMatchResponse = {
           deep_link_id: result.foundEntry.clipboard,
-          match_message: result.uniqueMatch
-            ? 'Link is uniquely matched for this device.'
-            : 'Fuzzy link with this id',
-          match_type: result.uniqueMatch ? 'unique' : 'ambiguous',
+          match_message: getMatchMessage(result.matchType),
+          match_type: result.matchType,
           request_ip_version: 'IP_V4',
           utm_medium: undefined,
           utm_source: undefined,
@@ -161,7 +180,7 @@ export const private_v1_postinstall_search_link = functions
         res.status(200).json({
           deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? undefined,
           match_message: 'No matching install found.',
-          match_type: 'none',
+          match_type: MatchType.NO_MATCH,
           request_ip_version: 'IP_V4',
           utm_medium: undefined,
           utm_source: undefined,
@@ -326,7 +345,7 @@ async function searchByHeuristics(
   if (bestMatch == undefined || bestMatch.score == 0) {
     return {
       foundEntry: undefined,
-      uniqueMatch: false,
+      matchType: MatchType.NO_MATCH,
       analytics: [
         {
           type: AnalyticsType.HEURISTICS_NOT_FOUND,
@@ -338,11 +357,12 @@ async function searchByHeuristics(
           },
         },
       ],
-      uuld: undefined,
+      uuid: undefined,
     };
   } else {
     const analytics: AnalyticsMessage[] = [];
-    if (matches.length > 1) {
+    const multipleMatches = matches.length > 1;
+    if (multipleMatches) {
       const sameScore = bestMatchScore == bestSecondMatchScore;
       analytics.push({
         type: sameScore
@@ -360,9 +380,11 @@ async function searchByHeuristics(
     const foundEntry = bestMatch.match as SavedDeviceHeuristics;
     return {
       foundEntry: foundEntry,
-      uniqueMatch: false,
+      matchType: multipleMatches
+        ? MatchType.MULTIPLE_HEURISTICS
+        : MatchType.SINGLE_HEURISTICS,
       analytics: analytics,
-      uuld: bestMatch.uuid,
+      uuid: bestMatch.uuid,
     };
   }
 }
@@ -379,7 +401,7 @@ async function searchByClipboardContent(
   if (snapshot.empty) {
     return {
       foundEntry: undefined,
-      uniqueMatch: false,
+      matchType: MatchType.NO_MATCH,
       analytics: [
         {
           type: AnalyticsType.PASTEBOARD_NOT_FOUND,
@@ -387,7 +409,7 @@ async function searchByClipboardContent(
           debugObject: fingerprint.uniqueMatchLinkToCheck,
         },
       ],
-      uuld: undefined,
+      uuid: undefined,
     };
   } else {
     const firstDoc = await snapshot.docs[0].data();
@@ -401,9 +423,9 @@ async function searchByClipboardContent(
     }
     return {
       foundEntry: firstDoc as SavedDeviceHeuristics,
-      uniqueMatch: true,
+      matchType: MatchType.UNIQUE_CLIPBOARD,
       analytics: analytics,
-      uuld: snapshot.docs[0].id,
+      uuid: snapshot.docs[0].id,
     };
   }
 }
