@@ -69,7 +69,6 @@ interface PostInstallResult {
 export const private_v1_postinstall_search_link = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
-
     if (req.method !== 'POST') {
       res.status(405).send('Method Not Allowed');
       return;

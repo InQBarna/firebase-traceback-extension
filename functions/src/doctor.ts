@@ -58,12 +58,14 @@ export const private_doctor = functions
       let initResult: ExtensionInitializationResult;
 
       // Initialize cleanup result
-      let cleanupResult: {
-        requested: boolean;
-        performed: boolean;
-        deletedCount: number;
-        error?: string;
-      } | undefined;
+      let cleanupResult:
+        | {
+            requested: boolean;
+            performed: boolean;
+            deletedCount: number;
+            error?: string;
+          }
+        | undefined;
 
       // Test Apple App Site Association (non-destructive)
       try {
@@ -131,7 +133,9 @@ export const private_doctor = functions
 
         if (isEmulator) {
           try {
-            functions.logger.info('Performing cleanup of all installation records...');
+            functions.logger.info(
+              'Performing cleanup of all installation records...',
+            );
             const db = getFirestore();
             const collection = db
               .collection('_traceback_')
@@ -157,10 +161,14 @@ export const private_doctor = functions
               }
 
               cleanupResult.performed = true;
-              functions.logger.info(`Cleanup completed: deleted ${cleanupResult.deletedCount} installation records`);
+              functions.logger.info(
+                `Cleanup completed: deleted ${cleanupResult.deletedCount} installation records`,
+              );
             } else {
               cleanupResult.performed = true;
-              functions.logger.info('Cleanup completed: no installation records to delete');
+              functions.logger.info(
+                'Cleanup completed: no installation records to delete',
+              );
             }
           } catch (error: any) {
             cleanupResult.error = error.message || 'Unknown cleanup error';
