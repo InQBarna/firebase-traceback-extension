@@ -56,11 +56,14 @@ const getTestFingerprint = () => ({
 // Helper function to clean up all test data using the doctor endpoint
 const cleanupAllInstallations = async () => {
   try {
-    const response = await request(HOST_BASE_URL)
-      .get('/v1_doctor?cleanupInstalls=true');
+    const response = await request(HOST_BASE_URL).get(
+      '/v1_doctor?cleanupInstalls=true',
+    );
 
     if (response.statusCode === 200 && response.body.cleanup) {
-      console.log(`Cleanup completed: deleted ${response.body.cleanup.deletedCount} installation records`);
+      console.log(
+        `Cleanup completed: deleted ${response.body.cleanup.deletedCount} installation records`,
+      );
       return response.body.cleanup.deletedCount;
     } else {
       console.warn('Cleanup failed:', response.body);
