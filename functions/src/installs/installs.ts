@@ -318,6 +318,14 @@ async function searchByHeuristics(
 ): Promise<PostInstallResult> {
   const snapshot = await collection.get();
 
+  // Normalize appInstallationTime to milliseconds
+  // iOS apps send in seconds (< 10 billion), JavaScript uses milliseconds (> 10 billion)
+  // Note: This detection will fail after November 20, 2286 (when 10 billion seconds have passed since Unix epoch)
+  const appInstallTimeMs =
+    fingerprint.appInstallationTime < 10000000000
+      ? fingerprint.appInstallationTime * 1000
+      : fingerprint.appInstallationTime;
+
   // Optionally: match further by language, timezone, etc.
   let matches: MatchResult[] = snapshot.docs.map((doc) => {
     const data = doc.data() as SavedDeviceHeuristics;
@@ -333,7 +341,7 @@ async function searchByHeuristics(
     // Allow small negative time differences (up to 30 seconds) to account for
     // clock synchronization issues, network delays, and quick app installations
     const timeDifference =
-      fingerprint.appInstallationTime - match.match.createdAt.seconds * 1000; // Convert seconds to milliseconds
+      appInstallTimeMs - match.match.createdAt.seconds * 1000; // Convert seconds to milliseconds
     return match.score > 0 && timeDifference > -30000; // -30 seconds in milliseconds
   });
   matches = matches.sort((a, b) => b.score - a.score);

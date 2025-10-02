@@ -672,3 +672,204 @@ describe('TraceBack API Integration doctor', () => {
     );
   });
 });
+
+describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
+  afterEach(async () => {
+    await cleanupAllInstallations();
+  });
+
+  test('should match iPhone17,1 iOS18 with CFNetwork user agent', async () => {
+    const testId = generateUniqueTestId();
+
+    // Pre-install: Browser saves device heuristics
+    const browserHeuristics: DeviceHeuristics = {
+      language: 'es-ES',
+      languages: ['es-ES'],
+      timezone: 'Europe/Madrid',
+      screenWidth: 402,
+      screenHeight: 874,
+      devicePixelRatio: 3,
+      platform: 'iPhone',
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      hardwareConcurrency: 8,
+      colorDepth: 24,
+      clipboard: `http://127.0.0.1:5002/iphone17-test-${testId}`,
+    };
+
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set('User-Agent', browserHeuristics.userAgent)
+      .send(browserHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+
+    // Post-install: App searches for matching install
+    const appFingerprint: DeviceFingerprint = {
+      appInstallationTime: Date.now(),
+      bundleId: 'com.inqbarna.familymealplan',
+      osVersion: '18.0',
+      sdkVersion: '1.2.2',
+      uniqueMatchLinkToCheck: undefined, // Force heuristics matching
+      device: {
+        deviceModelName: 'iPhone17,1',
+        languageCode: 'es',
+        languageCodeFromWebView: 'es-ES',
+        languageCodeRaw: 'es',
+        appVersionFromWebView:
+          '5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        screenResolutionWidth: 402,
+        screenResolutionHeight: 874,
+        timezone: 'Europe/Madrid',
+      },
+    };
+
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set(
+        'User-Agent',
+        'familymealplan/202510020716 CFNetwork/1568.100.1 Darwin/24.6.0',
+      )
+      .send(appFingerprint);
+
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('heuristics');
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+  });
+
+  test('should match iPhone17,1 iOS18 with realistic production timing (2 minutes delay)', async () => {
+    const testId = generateUniqueTestId();
+    const preInstallTime = Date.now();
+
+    // Pre-install: Browser saves device heuristics
+    const browserHeuristics: DeviceHeuristics = {
+      language: 'es-ES',
+      languages: ['es-ES'],
+      timezone: 'Europe/Madrid',
+      screenWidth: 402,
+      screenHeight: 874,
+      devicePixelRatio: 3,
+      platform: 'iPhone',
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      hardwareConcurrency: 8,
+      colorDepth: 24,
+      clipboard: `http://127.0.0.1:5002/iphone17-production-${testId}`,
+    };
+
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set('User-Agent', browserHeuristics.userAgent)
+      .send(browserHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+
+    // Simulate realistic delay: user downloads and installs app (2 minutes)
+    const appInstallTime = preInstallTime + 2 * 60 * 1000; // 2 minutes later
+
+    // Post-install: App searches for matching install
+    const appFingerprint: DeviceFingerprint = {
+      appInstallationTime: appInstallTime,
+      bundleId: 'com.inqbarna.familymealplan',
+      osVersion: '18.0',
+      sdkVersion: '1.2.2',
+      uniqueMatchLinkToCheck: undefined, // Force heuristics matching
+      device: {
+        deviceModelName: 'iPhone17,1',
+        languageCode: 'es',
+        languageCodeFromWebView: 'es-ES',
+        languageCodeRaw: 'es',
+        appVersionFromWebView:
+          '5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        screenResolutionWidth: 402,
+        screenResolutionHeight: 874,
+        timezone: 'Europe/Madrid',
+      },
+    };
+
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set(
+        'User-Agent',
+        'familymealplan/202510020716 CFNetwork/1568.100.1 Darwin/24.6.0',
+      )
+      .send(appFingerprint);
+
+    console.log('Match response:', JSON.stringify(matchResponse.body, null, 2));
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('heuristics');
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+  });
+
+  test('should handle appInstallationTime in seconds (iOS format)', async () => {
+    const testId = generateUniqueTestId();
+    const preInstallTimeMs = Date.now();
+    const preInstallTimeSeconds = Math.floor(preInstallTimeMs / 1000);
+
+    // Pre-install: Browser saves device heuristics
+    const browserHeuristics: DeviceHeuristics = {
+      language: 'es-ES',
+      languages: ['es-ES'],
+      timezone: 'Europe/Madrid',
+      screenWidth: 402,
+      screenHeight: 874,
+      devicePixelRatio: 3,
+      platform: 'iPhone',
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      hardwareConcurrency: 8,
+      colorDepth: 24,
+      clipboard: `http://127.0.0.1:5002/iphone17-seconds-${testId}`,
+    };
+
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set('User-Agent', browserHeuristics.userAgent)
+      .send(browserHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+
+    // App sends timestamp in seconds (iOS format) - 2 minutes after link click
+    const appInstallTimeSeconds = preInstallTimeSeconds + 120; // 2 minutes later
+
+    const appFingerprint: DeviceFingerprint = {
+      appInstallationTime: appInstallTimeSeconds, // In SECONDS, not milliseconds
+      bundleId: 'com.inqbarna.familymealplan',
+      osVersion: '18.0',
+      sdkVersion: '1.2.2',
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        deviceModelName: 'iPhone17,1',
+        languageCode: 'es',
+        languageCodeFromWebView: 'es-ES',
+        languageCodeRaw: 'es',
+        appVersionFromWebView:
+          '5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        screenResolutionWidth: 402,
+        screenResolutionHeight: 874,
+        timezone: 'Europe/Madrid',
+      },
+    };
+
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set(
+        'User-Agent',
+        'familymealplan/202510020716 CFNetwork/1568.100.1 Darwin/24.6.0',
+      )
+      .send(appFingerprint);
+
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('heuristics');
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+  });
+});
