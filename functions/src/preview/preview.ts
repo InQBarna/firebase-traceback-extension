@@ -44,8 +44,10 @@ export const link_preview = async function (
     const dynamicLink = (await linkSnapshot.docs[0].data()) as DynamicLink;
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
-      currentUrl.searchParams.set('link', dynamicLink.followLink);
-      return res.redirect(302, currentUrl.toString());
+      // Use the correct scheme and host (not the internal Cloud Functions domain)
+      const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);
+      redirectUrl.searchParams.set('link', dynamicLink.followLink);
+      return res.redirect(302, redirectUrl.toString());
     }
     source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);
   }

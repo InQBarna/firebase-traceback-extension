@@ -33,7 +33,7 @@ const hostname = `${getSiteId()}.web.app`;
 exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
   const { getExtensions } = await import('firebase-admin/extensions');
   try {
-    const initResult = await privateInitialize(true, true, config);
+    const initResult = await privateInitialize(true, config);
 
     // Finalize extension initialization
     await getExtensions()

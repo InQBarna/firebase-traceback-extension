@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions/v1';
 import { Config } from '../config';
 import DynamicLink from '../types';
 
@@ -12,8 +13,8 @@ export interface ExtensionInitializationResult {
 
 export const privateInitialize = async function (
   createRemoteHost: boolean,
-  createSampleLink: boolean,
   config: Config,
+  sampleFollowLink?: string,
 ): Promise<ExtensionInitializationResult> {
   const { FirebaseService } = await import('../firebase-service');
 
@@ -72,8 +73,8 @@ export const privateInitialize = async function (
     await firebaseService.deployVersion(siteID, versionID);
   }
 
-  // Add a sample dynamic link
-  if (createSampleLink) {
+  // Add a sample dynamic link if sampleFollowLink is provided
+  if (sampleFollowLink !== undefined) {
     // Initialize Firestore
     const db = admin.firestore();
     const collection = db
@@ -81,15 +82,31 @@ export const privateInitialize = async function (
       .doc('dynamiclinks')
       .collection('records');
 
-    // Add a sample dynamic link
-    const sampleLink: DynamicLink = {
-      path: '/example',
-      title: 'Example of dynamic link',
-      description: 'This is a sample link!',
-      image: `https://${siteID}.web.app/images/thumb.jpg`,
-      followLink: '',
-    };
-    await collection.add(sampleLink);
+    // Check if sample link already exists
+    const existingLinkQuery = await collection
+      .where('path', '==', '/example')
+      .limit(1)
+      .get();
+
+    if (!existingLinkQuery.empty) {
+      // Update existing link with followLink
+      const docRef = existingLinkQuery.docs[0].ref;
+      await docRef.update({ followLink: sampleFollowLink });
+      functions.logger.info(
+        `Updated existing sample link at /example with followLink: ${sampleFollowLink}`,
+      );
+    } else {
+      // Create new sample link
+      const sampleLink: DynamicLink = {
+        path: '/example',
+        title: 'Example of dynamic link',
+        description: 'This is a sample link!',
+        image: `https://${siteID}.web.app/images/thumb.jpg`,
+        followLink: sampleFollowLink,
+      };
+      await collection.add(sampleLink);
+      functions.logger.info('Created new sample link at /example');
+    }
   }
 
   if (createRemoteHost) {

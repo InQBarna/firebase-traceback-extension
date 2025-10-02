@@ -42,6 +42,7 @@ export const private_doctor = functions
     try {
       // Check if cleanup is requested
       const cleanupRequested = req.query.cleanupInstalls === 'true';
+      const testFollowLink = req.query.testFollowLink as string | undefined;
 
       // Calculate expected site configuration
       const siteId =
@@ -102,8 +103,9 @@ export const private_doctor = functions
         functions.logger.info('Attempting read-only initialization check...');
         initializationAttempted = true;
 
-        // Call with createRemoteHost=false, createSampleLink=true to create example dynamic link
-        initResult = await privateInitialize(false, true, config);
+        // Call with createRemoteHost=false to run initialization check
+        // If testFollowLink is provided, it will create/update the example dynamic link
+        initResult = await privateInitialize(false, config, testFollowLink);
 
         functions.logger.info(
           'Read-only initialization completed successfully:',

@@ -42,7 +42,7 @@ describe('privateInitialize', () => {
     jest.clearAllMocks();
   });
 
-  test('should work when createRemoteHost is true and createExample false', async () => {
+  test('should work when createRemoteHost is true', async () => {
     const config: Config = {
       projectID: 'iqbdemocms',
       extensionID: 'traceback',
@@ -56,7 +56,7 @@ describe('privateInitialize', () => {
       domain: '',
     };
 
-    const result = await privateInitialize(true, false, config);
+    const result = await privateInitialize(true, config);
 
     expect(result).toBeDefined();
     expect(result.siteAlreadyExisted).toBe(false);
@@ -66,7 +66,7 @@ describe('privateInitialize', () => {
   });
 
   /*
-    test.concurrent('integration test should work when createRemoteHost is false and createExample false', async () => {
+    test.concurrent('integration test should work when createRemoteHost is false', async () => {
         const config: Config = {
             projectID: 'iqbdemocms',
             extensionID: 'traceback',
@@ -79,7 +79,7 @@ describe('privateInitialize', () => {
             domain: 'demo-test-project-traceback',
         };
         admin.initializeApp()
-        await expect(privateInitialize(false, false, config)).resolves.toBeUndefined()
+        await expect(privateInitialize(false, config)).resolves.toBeUndefined()
     }, 10000)
     */
 });
