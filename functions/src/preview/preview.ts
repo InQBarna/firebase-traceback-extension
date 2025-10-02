@@ -32,7 +32,8 @@ export const link_preview = async function (
 
   const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   const scheme = isEmulator ? 'http' : 'https';
-  const host = req.headers.host ?? hostname;
+  // Always use the configured hostname (not req.headers.host which can be the Cloud Functions domain)
+  const host = isEmulator ? (req.headers.host ?? hostname) : hostname;
 
   // If not found, return 404
   const linkFound = linkSnapshot.docs.length !== 0;
