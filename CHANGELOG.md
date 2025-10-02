@@ -1,4 +1,4 @@
-## Version 0.4.0
+## Version 0.4.1
 
 - Bugfix app installation time mismatch with iOS sdk
 
