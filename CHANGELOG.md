@@ -1,5 +1,9 @@
 ## Version 0.4.0
 
+- Bugfix app installation time mismatch with iOS sdk
+
+## Version 0.4.0
+
 - Returning unique, heuristics, ambiguous, none in match_type
 - Dynamic/short links baseline working
 
