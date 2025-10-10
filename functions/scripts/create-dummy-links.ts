@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import DynamicLink from '../src/types';
 
 // Check if running in production mode
 const isProduction = process.argv.includes('--prod');
@@ -35,43 +36,46 @@ if (isProduction) {
 
 const db = admin.firestore();
 
-interface DummyLink {
-  longLink: string;
-  shortLink: string;
-  name: string;
-  description?: string;
-}
-
-const dummyLinks: DummyLink[] = [
+const dummyLinks: DynamicLink[] = [
   {
-    longLink: 'https://example.com/products/summer-sale',
-    shortLink: 'https://short.link/summer',
-    name: 'Summer Sale Campaign',
+    path: '/summer',
+    title: 'Summer Sale Campaign',
     description: 'Promotional link for summer sale',
+    followLink: 'https://example.com/products/summer-sale',
+    image:
+      'https://via.placeholder.com/1200x630/ff6b6b/ffffff?text=Summer+Sale',
   },
   {
-    longLink: 'https://example.com/blog/new-features',
-    shortLink: 'https://short.link/features',
-    name: 'New Features Announcement',
+    path: '/features',
+    title: 'New Features Announcement',
     description: 'Blog post about latest features',
+    followLink: 'https://example.com/blog/new-features',
+    image:
+      'https://via.placeholder.com/1200x630/4ecdc4/ffffff?text=New+Features',
   },
   {
-    longLink: 'https://example.com/app/onboarding',
-    shortLink: 'https://short.link/onboard',
-    name: 'User Onboarding Flow',
+    path: '/onboard',
+    title: 'User Onboarding Flow',
     description: 'Deep link for new user onboarding',
+    followLink: 'https://example.com/app/onboarding',
+    image: 'https://via.placeholder.com/1200x630/95e1d3/ffffff?text=Onboarding',
   },
   {
-    longLink: 'https://example.com/products/item/12345',
-    shortLink: 'https://short.link/prod12345',
-    name: 'Product #12345',
+    path: '/prod12345',
+    title: 'Product #12345',
     description: 'Direct link to product page',
+    followLink: 'https://example.com/products/item/12345',
+    image: 'https://via.placeholder.com/1200x630/f38181/ffffff?text=Product',
   },
   {
-    longLink: 'https://example.com/referral?code=ABC123',
-    shortLink: 'https://short.link/ref-abc',
-    name: 'Referral Code ABC123',
+    path: '/ref-abc',
+    title: 'Referral Code ABC123',
     description: 'Referral link for user acquisition',
+    followLink: 'https://example.com/referral?code=ABC123',
+    image: 'https://via.placeholder.com/1200x630/aa96da/ffffff?text=Referral',
+    expires: admin.firestore.Timestamp.fromMillis(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    ), // 30 days from now
   },
 ];
 
@@ -142,10 +146,10 @@ async function createDummyLinks() {
     };
 
     const docRef = await linksCollection.add(linkData);
-    console.log(`Created link: ${link.name} (ID: ${docRef.id})`);
+    console.log(`Created link: ${link.title} (ID: ${docRef.id})`);
 
     // Create analytics for this link
-    await createAnalyticsForLink(docRef.id, link.name);
+    await createAnalyticsForLink(docRef.id, link.title || 'Untitled');
   }
 
   console.log(

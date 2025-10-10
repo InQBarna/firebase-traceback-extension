@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Emulators",
+      "type": "shell",
+      "command": "firebase",
+      "args": [
+        "emulators:start",
+        "--inspect-functions",
+        "--project=iqbdemocms"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/functions/integration-tests"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*starting emulators.*",
+          "endsPattern": ".*All emulators ready.*"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Seed Dummy Links",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "init:links"],
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Start Emulators and Seed",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Start Emulators",
+        "Seed Dummy Links"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

@@ -32,6 +32,18 @@
         },
         {
           "type": "node",
+          "request": "launch",
+          "name": "Debug Extension with Emulators + Seed",
+          "preLaunchTask": "Start Emulators and Seed",
+          "runtimeExecutable": "node",
+          "runtimeArgs": ["-e", "0"],
+          "skipFiles": ["<node_internals>/**"],
+          "presentation": {
+            "hidden": true
+          }
+        },
+        {
+          "type": "node",
           "name": "Debug Jest Tests",
           "request": "launch",
           "program": "${workspaceFolder}/functions/node_modules/.bin/jest",
@@ -43,6 +55,16 @@
           "console": "integratedTerminal",
           "internalConsoleOptions": "neverOpen",
           "disableOptimisticBPs": true
+        }
+      ],
+      "compounds": [
+        {
+          "name": "Debug Extension with Emulators + Seed Data",
+          "configurations": ["Debug Extension with Emulators + Seed", "Attach to Emulators"],
+          "stopAll": true,
+          "presentation": {
+            "order": 1
+          }
         }
       ]
         
