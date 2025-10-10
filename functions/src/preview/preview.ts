@@ -3,12 +3,17 @@ import * as admin from 'firebase-admin';
 import DynamicLink from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
-import axios from 'axios';
 import { Config } from '../config';
 import {
   trackLinkAnalytics,
   AnalyticsEventType,
 } from '../analytics/track-analytics';
+import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
+import {
+  TRACEBACK_COLLECTION,
+  DYNAMICLINKS_DOC,
+  RECORDS_COLLECTION,
+} from '../common/constants';
 
 export const link_preview = async function (
   req: Request,
@@ -22,9 +27,9 @@ export const link_preview = async function (
   const db = admin.firestore();
 
   const collection = db
-    .collection('_traceback_')
-    .doc('dynamiclinks')
-    .collection('records');
+    .collection(TRACEBACK_COLLECTION)
+    .doc(DYNAMICLINKS_DOC)
+    .collection(RECORDS_COLLECTION);
 
   // Parse link data
   const urlObject = new URL(req.baseUrl, 'https://example.com');
@@ -92,7 +97,7 @@ async function getUnknownLinkResponse(
   config: Config,
 ): Promise<string> {
   // Get iOS AppStore appID
-  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(
+  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
     config.iosBundleID,
     'es',
   );
@@ -131,7 +136,7 @@ async function getFirestoreDynamicLinkInfo(
 
   // Get iOS AppStore appID
   // TODO: static var with appStoreID
-  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreID(
+  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
     config.iosBundleID,
     'es',
   );
@@ -172,57 +177,4 @@ async function getDynamicLinkHTMLResponse(
       '{{app_description}}',
       linkInfo.appStoreInfo?.description ?? '',
     );
-}
-
-interface AppStoreInfo {
-  trackName: string;
-  description: string;
-  trackId: string;
-  artworkUrl100: string;
-}
-
-// Static variable for cached data
-const appStoreCache: Record<
-  string,
-  {
-    data: AppStoreInfo;
-    expiresAt: number;
-  }
-> = {};
-
-// Get AppStore numeric ID
-// TODO: static save of appstore link
-async function getAppStoreID(
-  bundleId: string,
-  country: string,
-): Promise<AppStoreInfo | undefined> {
-  const cacheKey = `${bundleId}_${country}`;
-  const now = Date.now();
-
-  const cached = appStoreCache[cacheKey];
-  if (cached && cached.expiresAt > now) {
-    return cached.data;
-  }
-
-  try {
-    const response = await axios.get(
-      `http://itunes.apple.com/lookup?bundleId=${bundleId}&country=${country}`,
-    );
-
-    if (response.data && response.data.results.length > 0) {
-      const appInfo: AppStoreInfo = response.data.results[0] as AppStoreInfo;
-
-      appStoreCache[cacheKey] = {
-        data: appInfo,
-        expiresAt: now + 24 * 60 * 60 * 1000, // 24 hours in ms
-      };
-
-      return appInfo;
-    }
-
-    return undefined; // App Store URL not found in the response
-  } catch (error) {
-    // functions.logger.error('Error fetching data from iTunes API:', error);
-    return undefined;
-  }
 }

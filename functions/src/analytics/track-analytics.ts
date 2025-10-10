@@ -1,6 +1,12 @@
 import * as admin from 'firebase-admin';
+import {
+  TRACEBACK_COLLECTION,
+  DYNAMICLINKS_DOC,
+  RECORDS_COLLECTION,
+  ANALYTICS_COLLECTION,
+} from '../common/constants';
 
-export interface LinkAnalytics {
+interface LinkAnalytics {
   clicks: number;
   opens: number;
   installs: number;
@@ -22,11 +28,11 @@ export async function trackLinkAnalytics(
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
   const analyticsDocRef = db
-    .collection('_traceback_')
-    .doc('dynamiclinks')
-    .collection('records')
+    .collection(TRACEBACK_COLLECTION)
+    .doc(DYNAMICLINKS_DOC)
+    .collection(RECORDS_COLLECTION)
     .doc(linkId)
-    .collection('analytics')
+    .collection(ANALYTICS_COLLECTION)
     .doc(today);
 
   try {
@@ -76,9 +82,9 @@ export async function trackLinkAnalyticsByUrl(
 
     const db = admin.firestore();
     const linkSnapshot = await db
-      .collection('_traceback_')
-      .doc('dynamiclinks')
-      .collection('records')
+      .collection(TRACEBACK_COLLECTION)
+      .doc(DYNAMICLINKS_DOC)
+      .collection(RECORDS_COLLECTION)
       .where('path', '==', linkPath)
       .limit(1)
       .get();

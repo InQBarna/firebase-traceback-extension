@@ -14,6 +14,16 @@ import {
   trackLinkAnalyticsByUrl,
   AnalyticsEventType,
 } from '../analytics/track-analytics';
+import {
+  TRACEBACK_COLLECTION,
+  INSTALLS_DOC,
+  RECORDS_COLLECTION,
+} from '../common/constants';
+import {
+  InstallAnalyticsType,
+  InstallAnalyticsMessage,
+  logInstallAnalytics,
+} from './install-analytics';
 
 export const deviceFingerprintSchema = Joi.object({
   appInstallationTime: Joi.number().required(),
@@ -39,23 +49,6 @@ interface MatchResult {
   uuid: string;
 }
 
-enum AnalyticsType {
-  ERROR = 'ERROR',
-  PASTEBOARD_MULTIPLE_MATCHES = 'PASTEBOARD_MULTIPLE_MATCHES',
-  PASTEBOARD_NOT_FOUND = 'PASTEBOARD_NOT_FOUND',
-  HEURISTICS_NOT_FOUND = 'HEURISTICS_NOT_FOUND',
-  HEURISTICS_MULTIPLE_MATCHES = 'HEURISTICS_MULTIPLE_MATCHES',
-  HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE = 'HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE',
-  DEBUG_HEURISTICS_SUCCESS = 'DEBUG_HEURISTICS_SUCCESS',
-  DEBUG_HEURISTICS_FAILURE = 'DEBUG_HEURISTICS_FAILURE',
-}
-
-interface AnalyticsMessage {
-  type: AnalyticsType;
-  message: string;
-  debugObject: any | undefined;
-}
-
 enum MatchType {
   UNIQUE_CLIPBOARD = 'unique',
   SINGLE_HEURISTICS = 'heuristics',
@@ -66,7 +59,7 @@ enum MatchType {
 interface PostInstallResult {
   foundEntry: SavedDeviceHeuristics | undefined;
   matchType: MatchType;
-  analytics: AnalyticsMessage[];
+  analytics: InstallAnalyticsMessage[];
   uuid: string | undefined;
 }
 
@@ -96,59 +89,7 @@ export const private_v1_postinstall_search_link = functions
       const result = await searchPostInstall(fingerprint, ip, userAgent);
 
       // 2.- ANALYTICS
-      for (let index = 0; index < result.analytics.length; index++) {
-        const element = result.analytics[index];
-        switch (element.type) {
-          case AnalyticsType.ERROR:
-            functions.logger.error(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.HEURISTICS_MULTIPLE_MATCHES:
-            functions.logger.info(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE:
-            functions.logger.warn(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.HEURISTICS_NOT_FOUND:
-            functions.logger.info(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.PASTEBOARD_MULTIPLE_MATCHES:
-            functions.logger.warn(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.PASTEBOARD_NOT_FOUND:
-            functions.logger.warn(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.DEBUG_HEURISTICS_FAILURE:
-            functions.logger.warn(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-          case AnalyticsType.DEBUG_HEURISTICS_SUCCESS:
-            functions.logger.info(
-              element.type.toString() + ': ' + element.message,
-              JSON.stringify({ debugObject: element.debugObject }),
-            );
-            break;
-        }
-      }
+      logInstallAnalytics(result.analytics);
 
       // 3.- Remove if grabbed
       if (result.uuid !== undefined) {
@@ -208,9 +149,9 @@ async function removeFoundPostInstall(uuid: string): Promise<void> {
   try {
     const db = getFirestore();
     const docRef = db
-      .collection('_traceback_')
-      .doc('installs')
-      .collection('records')
+      .collection(TRACEBACK_COLLECTION)
+      .doc(INSTALLS_DOC)
+      .collection(RECORDS_COLLECTION)
       .doc(uuid);
     await docRef.delete();
   } catch {
@@ -252,9 +193,9 @@ async function searchPostInstall(
 
   const db = getFirestore();
   const collection = db
-    .collection('_traceback_')
-    .doc('installs')
-    .collection('records');
+    .collection(TRACEBACK_COLLECTION)
+    .doc(INSTALLS_DOC)
+    .collection(RECORDS_COLLECTION);
 
   if (fingerprint.uniqueMatchLinkToCheck !== undefined) {
     result = await searchByClipboardContent(
@@ -274,7 +215,7 @@ async function searchPostInstall(
       // Unique search failed
       if (heuristicsSearch.foundEntry !== undefined) {
         result.analytics.push({
-          type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
+          type: InstallAnalyticsType.DEBUG_HEURISTICS_FAILURE,
           message: 'unique search failed but heuristics would have succeeded',
           debugObject: {
             unique: result.foundEntry,
@@ -283,7 +224,7 @@ async function searchPostInstall(
         });
       } else {
         result.analytics.push({
-          type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
+          type: InstallAnalyticsType.DEBUG_HEURISTICS_SUCCESS,
           message:
             'unique search failed and heuristics also failed - consistent results',
           debugObject: {
@@ -296,7 +237,7 @@ async function searchPostInstall(
       // Unique search succeeded
       if (heuristicsSearch.foundEntry === undefined) {
         result.analytics.push({
-          type: AnalyticsType.DEBUG_HEURISTICS_FAILURE,
+          type: InstallAnalyticsType.DEBUG_HEURISTICS_FAILURE,
           message: 'unique search succeeded but heuristics would have failed',
           debugObject: {
             unique: result.foundEntry,
@@ -305,7 +246,7 @@ async function searchPostInstall(
         });
       } else {
         result.analytics.push({
-          type: AnalyticsType.DEBUG_HEURISTICS_SUCCESS,
+          type: InstallAnalyticsType.DEBUG_HEURISTICS_SUCCESS,
           message:
             'unique search succeeded and heuristics also succeeded - consistent results',
           debugObject: {
@@ -367,7 +308,7 @@ async function searchByHeuristics(
       matchType: MatchType.NO_MATCH,
       analytics: [
         {
-          type: AnalyticsType.HEURISTICS_NOT_FOUND,
+          type: InstallAnalyticsType.HEURISTICS_NOT_FOUND,
           message: 'no match found with heuristics search',
           debugObject: {
             fingerprint: fingerprint,
@@ -379,14 +320,14 @@ async function searchByHeuristics(
       uuid: undefined,
     };
   } else {
-    const analytics: AnalyticsMessage[] = [];
+    const analytics: InstallAnalyticsMessage[] = [];
     const multipleMatches = matches.length > 1;
     if (multipleMatches) {
       const sameScore = bestMatchScore == bestSecondMatchScore;
       analytics.push({
         type: sameScore
-          ? AnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE
-          : AnalyticsType.HEURISTICS_MULTIPLE_MATCHES,
+          ? InstallAnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE
+          : InstallAnalyticsType.HEURISTICS_MULTIPLE_MATCHES,
         message: 'Multiple heuristics matches',
         debugObject: {
           fingerprint: fingerprint,
@@ -423,7 +364,7 @@ async function searchByClipboardContent(
       matchType: MatchType.NO_MATCH,
       analytics: [
         {
-          type: AnalyticsType.PASTEBOARD_NOT_FOUND,
+          type: InstallAnalyticsType.PASTEBOARD_NOT_FOUND,
           message: 'no match found with pasteboard content',
           debugObject: fingerprint.uniqueMatchLinkToCheck,
         },
@@ -432,10 +373,10 @@ async function searchByClipboardContent(
     };
   } else {
     const firstDoc = await snapshot.docs[0].data();
-    const analytics: AnalyticsMessage[] = [];
+    const analytics: InstallAnalyticsMessage[] = [];
     if (snapshot.docs.length > 1) {
       analytics.push({
-        type: AnalyticsType.PASTEBOARD_MULTIPLE_MATCHES,
+        type: InstallAnalyticsType.PASTEBOARD_MULTIPLE_MATCHES,
         message: 'Multiple matches found with pasteboard content',
         debugObject: fingerprint.uniqueMatchLinkToCheck,
       });
@@ -700,9 +641,9 @@ export const private_v1_preinstall_save_link = async (
 
     const db = getFirestore();
     await db
-      .collection('_traceback_')
-      .doc('installs')
-      .collection('records')
+      .collection(TRACEBACK_COLLECTION)
+      .doc(INSTALLS_DOC)
+      .collection(RECORDS_COLLECTION)
       .doc(installId)
       .set(payload);
 
@@ -747,9 +688,9 @@ export async function deleteOldInstalls(
   db: Firestore,
 ): Promise<void> {
   const snapshot = await db
-    .collection('_traceback_')
-    .doc('installs')
-    .collection('records')
+    .collection(TRACEBACK_COLLECTION)
+    .doc(INSTALLS_DOC)
+    .collection(RECORDS_COLLECTION)
     .where(
       'createdAt',
       '<',

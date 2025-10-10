@@ -3,6 +3,11 @@ import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { Config } from '../config';
 import DynamicLink from '../types';
+import {
+  TRACEBACK_COLLECTION,
+  DYNAMICLINKS_DOC,
+  RECORDS_COLLECTION,
+} from '../common/constants';
 
 export interface ExtensionInitializationResult {
   siteAlreadyExisted: boolean;
@@ -78,9 +83,9 @@ export const privateInitialize = async function (
     // Initialize Firestore
     const db = admin.firestore();
     const collection = db
-      .collection('_traceback_')
-      .doc('dynamiclinks')
-      .collection('records');
+      .collection(TRACEBACK_COLLECTION)
+      .doc(DYNAMICLINKS_DOC)
+      .collection(RECORDS_COLLECTION);
 
     // Check if sample link already exists
     const existingLinkQuery = await collection

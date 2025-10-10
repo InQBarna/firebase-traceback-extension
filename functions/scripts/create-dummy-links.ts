@@ -1,5 +1,11 @@
 import * as admin from 'firebase-admin';
 import DynamicLink from '../src/types';
+import {
+  TRACEBACK_COLLECTION,
+  DYNAMICLINKS_DOC,
+  RECORDS_COLLECTION,
+  ANALYTICS_COLLECTION,
+} from '../src/common/constants';
 
 // Check if running in production mode
 const isProduction = process.argv.includes('--prod');
@@ -98,11 +104,11 @@ async function createAnalyticsForLink(linkId: string, linkName: string) {
   console.log(`  Creating analytics for: ${linkName}`);
 
   const analyticsCollection = db
-    .collection('_traceback_')
-    .doc('dynamiclinks')
-    .collection('records')
+    .collection(TRACEBACK_COLLECTION)
+    .doc(DYNAMICLINKS_DOC)
+    .collection(RECORDS_COLLECTION)
     .doc(linkId)
-    .collection('analytics');
+    .collection(ANALYTICS_COLLECTION);
 
   // Create analytics for last 60 days with some gaps
   const today = new Date();
@@ -134,9 +140,9 @@ async function createDummyLinks() {
   console.log(`Creating dummy links and analytics in ${environment}...\n`);
 
   const linksCollection = db
-    .collection('_traceback_')
-    .doc('dynamiclinks')
-    .collection('records');
+    .collection(TRACEBACK_COLLECTION)
+    .doc(DYNAMICLINKS_DOC)
+    .collection(RECORDS_COLLECTION);
 
   for (const link of dummyLinks) {
     const linkData = {
