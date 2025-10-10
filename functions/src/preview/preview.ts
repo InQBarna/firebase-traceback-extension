@@ -5,6 +5,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
 import { Config } from '../config';
+import {
+  trackLinkAnalytics,
+  AnalyticsEventType,
+} from '../analytics/track-analytics';
 
 export const link_preview = async function (
   req: Request,
@@ -42,12 +46,17 @@ export const link_preview = async function (
     source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
   } else {
     // If followLink is available, redirect with link parameter
-    const dynamicLink = (await linkSnapshot.docs[0].data()) as DynamicLink;
+    const linkDoc = linkSnapshot.docs[0];
+    const dynamicLink = linkDoc.data() as DynamicLink;
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
+      // Track the click before redirecting
+      await trackLinkAnalytics(linkDoc.id, AnalyticsEventType.OPEN);
+
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);
       redirectUrl.searchParams.set('link', dynamicLink.followLink);
+      res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }
     source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);

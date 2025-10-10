@@ -10,6 +10,10 @@ import {
   SavedDeviceHeuristics,
   TraceBackMatchResponse,
 } from './types';
+import {
+  trackLinkAnalyticsByUrl,
+  AnalyticsEventType,
+} from '../analytics/track-analytics';
 
 export const deviceFingerprintSchema = Joi.object({
   appInstallationTime: Joi.number().required(),
@@ -153,6 +157,14 @@ export const private_v1_postinstall_search_link = functions
 
       // 4.- RESPONSE (+ some more analytics)
       if (result.foundEntry !== undefined) {
+        // Track install analytics for the matched link
+        if (result.foundEntry.clipboard) {
+          await trackLinkAnalyticsByUrl(
+            result.foundEntry.clipboard,
+            AnalyticsEventType.INSTALL,
+          );
+        }
+
         const getMatchMessage = (matchType: MatchType): string => {
           switch (matchType) {
             case MatchType.UNIQUE_CLIPBOARD:
@@ -693,6 +705,14 @@ export const private_v1_preinstall_save_link = async (
       .collection('records')
       .doc(installId)
       .set(payload);
+
+    // Track analytics for the link if clipboard contains a link URL
+    if (heuristics.clipboard) {
+      await trackLinkAnalyticsByUrl(
+        heuristics.clipboard,
+        AnalyticsEventType.OPEN,
+      );
+    }
 
     await oldInstallsMaintenance(db);
 
