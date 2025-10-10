@@ -7,9 +7,28 @@
         {
             "type": "node",
             "request": "attach",
-            "name": "Debug",
+            "name": "Attach to Emulators",
             "host": "127.0.0.1",
-            "port": 9229
+            "port": 9229,
+            "restart": true,
+            "timeout": 30000,
+            "skipFiles": ["<node_internals>/**"]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Extension with Emulators",
+            "runtimeExecutable": "${userHome}/.nvm/versions/node/v20.18.3/bin/firebase",
+            "runtimeArgs": [
+                "emulators:start",
+                "--inspect-functions",
+                "--project=iqbdemocms"
+            ],
+            "cwd": "${workspaceFolder}/functions/integration-tests",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            "outputCapture": "std",
+            "skipFiles": ["<node_internals>/**"]
         },
         {
           "type": "node",

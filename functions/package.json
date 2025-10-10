@@ -1,12 +1,15 @@
 {
   "name": "firebase-traceback",
   "scripts": {
-    "lint": "eslint \"src/**/*\" \"test/**/*\"",
-    "lint:fix": "eslint \"src/**/*\" \"test/**/*\" --fix",
+    "lint": "eslint \"src/**/*\" \"test/**/*\" \"scripts/**/*\"",
+    "lint:fix": "eslint \"src/**/*\" \"test/**/*\" \"scripts/**/*\" --fix",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "test:watch": "jest --watchAll",
-    "test": "jest"
+    "test": "jest",
+    "script": "ts-node --project tsconfig.scripts.json",
+    "init:links": "npm run script scripts/create-dummy-links.ts",
+    "init:links:prod": "npm run script scripts/create-dummy-links.ts -- --prod"
   },
   "main": "lib/index.js",
   "dependencies": {
