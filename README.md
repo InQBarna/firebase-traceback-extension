@@ -27,7 +27,7 @@ You can also setup dynamic links in a **Cloud Firestore** collection.
 
 ### Manual / Firebase Console
 
-Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/traceback@0.1.1-beta.0).
+Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/traceback@0.5.0-beta.0).
 
 ### Using Firebase CLI
 

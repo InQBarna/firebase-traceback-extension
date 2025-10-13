@@ -1,3 +1,7 @@
+## Version 0.5.0
+
+- Daily analytics for dynamic/short links.
+
 ## Version 0.4.1
 
 - Bugfix app installation time mismatch with iOS sdk
