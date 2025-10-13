@@ -9,10 +9,12 @@
   "testing.automaticallyOpenTestResults": "neverOpen",
   "typescript.tsdk": "functions/node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "files.associations": {
-    "*.test.ts": "typescript"
-  },
   "eslint.workingDirectories": [
     "functions"
-  ]
+  ],
+  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/lib": true
+  }
 }

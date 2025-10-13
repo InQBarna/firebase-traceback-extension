@@ -11,7 +11,8 @@
     "strict": true,
     "target": "es2021",
     "lib": ["es2021"],
-    "types": ["node", "jest"]
+    "types": ["node"],
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": ["src"]
