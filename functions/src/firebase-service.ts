@@ -53,7 +53,7 @@ export class FirebaseService {
     try {
       this.privateConfig = config;
       await this.getAccessToken();
-    } catch (error) {
+    } catch (_error) {
       throw Error(
         'Could not get access token. If running test locally try executing gcloud auth "application-default login"',
       );
@@ -117,7 +117,7 @@ export class FirebaseService {
           siteId: siteID,
         };
       }
-    } catch (error) {
+    } catch (_error) {
       // Nice, continue
     }
 

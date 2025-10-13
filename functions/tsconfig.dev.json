@@ -1,4 +1,0 @@
-{
-  "include": [".eslintrc.js"],
-  "types": ["jest"],  //<--  add jest or remove completely
-}

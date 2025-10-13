@@ -52,7 +52,7 @@ export async function getAppStoreInfo(
     }
 
     return undefined; // App Store URL not found in the response
-  } catch (error) {
+  } catch (_error) {
     // Log error silently - AppStore info is optional
     return undefined;
   }
