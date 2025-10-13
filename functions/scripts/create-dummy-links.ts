@@ -6,6 +6,7 @@ import {
   RECORDS_COLLECTION,
   ANALYTICS_COLLECTION,
 } from '../src/common/constants';
+import { additionalSampleLinks } from '../src/common/sample-links';
 
 // Check if running in production mode
 const isProduction = process.argv.includes('--prod');
@@ -42,42 +43,28 @@ if (isProduction) {
 
 const db = admin.firestore();
 
+// Use shared sample links and add images and optional expiry
 const dummyLinks: DynamicLink[] = [
   {
-    path: '/summer',
-    title: 'Summer Sale Campaign',
-    description: 'Promotional link for summer sale',
-    followLink: 'https://example.com/products/summer-sale',
+    ...additionalSampleLinks[0], // summer
     image:
       'https://via.placeholder.com/1200x630/ff6b6b/ffffff?text=Summer+Sale',
   },
   {
-    path: '/features',
-    title: 'New Features Announcement',
-    description: 'Blog post about latest features',
-    followLink: 'https://example.com/blog/new-features',
+    ...additionalSampleLinks[1], // features
     image:
       'https://via.placeholder.com/1200x630/4ecdc4/ffffff?text=New+Features',
   },
   {
-    path: '/onboard',
-    title: 'User Onboarding Flow',
-    description: 'Deep link for new user onboarding',
-    followLink: 'https://example.com/app/onboarding',
+    ...additionalSampleLinks[2], // onboard
     image: 'https://via.placeholder.com/1200x630/95e1d3/ffffff?text=Onboarding',
   },
   {
-    path: '/prod12345',
-    title: 'Product #12345',
-    description: 'Direct link to product page',
-    followLink: 'https://example.com/products/item/12345',
+    ...additionalSampleLinks[3], // prod12345
     image: 'https://via.placeholder.com/1200x630/f38181/ffffff?text=Product',
   },
   {
-    path: '/ref-abc',
-    title: 'Referral Code ABC123',
-    description: 'Referral link for user acquisition',
-    followLink: 'https://example.com/referral?code=ABC123',
+    ...additionalSampleLinks[4], // ref-abc
     image: 'https://via.placeholder.com/1200x630/aa96da/ffffff?text=Referral',
     expires: admin.firestore.Timestamp.fromMillis(
       Date.now() + 30 * 24 * 60 * 60 * 1000,

@@ -4,6 +4,7 @@
     "plugin:@typescript-eslint/recommended",
     "plugin:prettier/recommended"
   ],
+  "ignorePatterns": ["*.md"],
   "rules": {
     "no-useless-catch": "off",
     "eqeqeq": "off",

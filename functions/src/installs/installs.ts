@@ -214,6 +214,12 @@ async function searchPostInstall(
     if (result.foundEntry === undefined) {
       // Unique search failed
       if (heuristicsSearch.foundEntry !== undefined) {
+        result = {
+          foundEntry: heuristicsSearch.foundEntry,
+          matchType: heuristicsSearch.matchType,
+          analytics: [...result.analytics, ...heuristicsSearch.analytics],
+          uuid: heuristicsSearch.uuid,
+        };
         result.analytics.push({
           type: InstallAnalyticsType.DEBUG_HEURISTICS_FAILURE,
           message: 'unique search failed but heuristics would have succeeded',
@@ -651,7 +657,7 @@ export const private_v1_preinstall_save_link = async (
     if (heuristics.clipboard) {
       await trackLinkAnalyticsByUrl(
         heuristics.clipboard,
-        AnalyticsEventType.OPEN,
+        AnalyticsEventType.CLICK,
       );
     }
 

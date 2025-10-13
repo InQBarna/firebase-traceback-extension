@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions/v1';
 import { Config } from '../config';
-import DynamicLink from '../types';
+import { getSampleLink } from '../common/sample-links';
 import {
   TRACEBACK_COLLECTION,
   DYNAMICLINKS_DOC,
@@ -19,7 +19,6 @@ export interface ExtensionInitializationResult {
 export const privateInitialize = async function (
   createRemoteHost: boolean,
   config: Config,
-  sampleFollowLink?: string,
 ): Promise<ExtensionInitializationResult> {
   const { FirebaseService } = await import('../firebase-service');
 
@@ -76,42 +75,9 @@ export const privateInitialize = async function (
 
     // Deploy to hosting
     await firebaseService.deployVersion(siteID, versionID);
-  }
 
-  // Add a sample dynamic link if sampleFollowLink is provided
-  if (sampleFollowLink !== undefined) {
-    // Initialize Firestore
-    const db = admin.firestore();
-    const collection = db
-      .collection(TRACEBACK_COLLECTION)
-      .doc(DYNAMICLINKS_DOC)
-      .collection(RECORDS_COLLECTION);
-
-    // Check if sample link already exists
-    const existingLinkQuery = await collection
-      .where('path', '==', '/example')
-      .limit(1)
-      .get();
-
-    if (!existingLinkQuery.empty) {
-      // Update existing link with followLink
-      const docRef = existingLinkQuery.docs[0].ref;
-      await docRef.update({ followLink: sampleFollowLink });
-      functions.logger.info(
-        `Updated existing sample link at /example with followLink: ${sampleFollowLink}`,
-      );
-    } else {
-      // Create new sample link
-      const sampleLink: DynamicLink = {
-        path: '/example',
-        title: 'Example of dynamic link',
-        description: 'This is a sample link!',
-        image: `https://${siteID}.web.app/images/thumb.jpg`,
-        followLink: sampleFollowLink,
-      };
-      await collection.add(sampleLink);
-      functions.logger.info('Created new sample link at /example');
-    }
+    // Create a sample dynamic link to help users understand how to use the extension
+    await createSampleDynamicLink(siteID);
   }
 
   if (createRemoteHost) {
@@ -132,3 +98,46 @@ export const privateInitialize = async function (
     } as ExtensionInitializationResult;
   }
 };
+
+/**
+ * Creates a sample dynamic link during extension initialization
+ * This helps users understand how to create and use dynamic links
+ */
+async function createSampleDynamicLink(siteId: string): Promise<void> {
+  try {
+    const db = admin.firestore();
+    const collection = db
+      .collection(TRACEBACK_COLLECTION)
+      .doc(DYNAMICLINKS_DOC)
+      .collection(RECORDS_COLLECTION);
+
+    // Check if sample link already exists
+    const existingLinkQuery = await collection
+      .where('path', '==', '/example')
+      .limit(1)
+      .get();
+
+    const sampleLink = getSampleLink(siteId);
+
+    if (!existingLinkQuery.empty) {
+      // Update existing sample link
+      const docRef = existingLinkQuery.docs[0].ref;
+      await docRef.update({
+        ...sampleLink,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+      functions.logger.info('Updated existing sample dynamic link at /example');
+    } else {
+      // Create new sample link
+      await collection.add({
+        ...sampleLink,
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+      functions.logger.info('Created new sample dynamic link at /example');
+    }
+  } catch (error) {
+    // Log error but don't fail the initialization
+    functions.logger.warn('Failed to create sample dynamic link:', error);
+  }
+}

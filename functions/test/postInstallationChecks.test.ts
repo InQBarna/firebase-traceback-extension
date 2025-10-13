@@ -1,22 +1,18 @@
 import * as request from 'supertest';
-import * as admin from 'firebase-admin';
 import { DeviceHeuristics, DeviceFingerprint } from '../src/installs/types';
+import {
+  getTestApiUrl,
+  initializeTestFirebase,
+  clearInstallRecords,
+  cleanupTestFirebase,
+  generateUniqueTestId,
+  sleep,
+} from './test-utils';
 
-// Initialize Firebase Admin for testing
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    projectId: 'demo-traceback',
-  });
-}
+// Initialize Firebase Admin for testing (use default project ID)
+initializeTestFirebase();
 
-const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'http://127.0.0.1:5002';
-// 'https://familymealplan-pre-traceback.web.app';
-// const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdvtest-fab2a-traceback.web.app';
-// const HOST_BASE_URL = process.env.TRACEBACK_API_URL ?? 'https://apptdv-traceback.web.app';
-
-// Helper function to generate unique test IDs to avoid test interference
-const generateUniqueTestId = () =>
-  `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+const HOST_BASE_URL = getTestApiUrl();
 
 const getTestHeuristics = () => ({
   language: 'en-EN',
@@ -53,31 +49,19 @@ const getTestFingerprint = () => ({
   },
 });
 
-// Helper function to clean up all test data using the doctor endpoint
-const cleanupAllInstallations = async () => {
-  try {
-    const response = await request(HOST_BASE_URL).get(
-      '/v1_doctor?cleanupInstalls=true',
-    );
-
-    if (response.statusCode === 200 && response.body.cleanup) {
-      console.log(
-        `Cleanup completed: deleted ${response.body.cleanup.deletedCount} installation records`,
-      );
-      return response.body.cleanup.deletedCount;
-    } else {
-      console.warn('Cleanup failed:', response.body);
-      return 0;
-    }
-  } catch (error) {
-    console.warn('Failed to cleanup installations:', error);
-    return 0;
-  }
-};
-
 describe('TraceBack API Integration', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   test('should store and retrieve a fingerprint', async () => {
@@ -113,9 +97,19 @@ describe('TraceBack API Integration', () => {
   });
 });
 
-describe('TraceBack API Integration', () => {
+describe('TraceBack API Integration - No Clipboard', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   test('should store and retrieve a fingerprint when no clipboard', async () => {
@@ -161,9 +155,19 @@ describe('TraceBack API Integration', () => {
   });
 });
 
-describe('TraceBack API Integration', () => {
+describe('TraceBack API Integration - Language Mismatch', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   test('should store and retrieve an invalid fingerprint if different language', async () => {
@@ -244,8 +248,18 @@ const getTestFingerprintMissingKey = () => ({
 });
 
 describe('TraceBack API Integration corner case', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   test('missing fingerPrint Key', async () => {
@@ -286,8 +300,18 @@ describe('TraceBack API Integration corner case', () => {
 
 // Edge Case Tests for Heuristic Search Improvements
 describe('TraceBack Heuristic Search Edge Cases', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   // Test 1: Timing edge cases - app install very close to pre-install
@@ -567,7 +591,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
     expect(store1Response.statusCode).toBe(200);
 
     // Wait a moment to ensure different timestamps
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await sleep(100);
 
     // Create second entry with better match
     const heuristics2: DeviceHeuristics = {
@@ -674,8 +698,18 @@ describe('TraceBack API Integration doctor', () => {
 });
 
 describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
+  jest.setTimeout(30000);
+
+  beforeEach(async () => {
+    await clearInstallRecords();
+  });
+
   afterEach(async () => {
-    await cleanupAllInstallations();
+    await clearInstallRecords();
+  });
+
+  afterAll(async () => {
+    await cleanupTestFirebase();
   });
 
   test('should match iPhone17,1 iOS18 with CFNetwork user agent', async () => {

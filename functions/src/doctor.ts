@@ -5,7 +5,6 @@ import {
   ExtensionInitializationResult,
 } from './lifecycle/initialize';
 import axios from 'axios';
-import { getFirestore } from 'firebase-admin/firestore';
 
 export interface DoctorResult {
   extensionInitialization: ExtensionInitializationResult;
@@ -28,22 +27,12 @@ export interface DoctorResult {
     initializationAttempted: boolean;
     initializationError?: string;
   };
-  cleanup?: {
-    requested: boolean;
-    performed: boolean;
-    deletedCount: number;
-    error?: string;
-  };
 }
 
 export const private_doctor = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
     try {
-      // Check if cleanup is requested
-      const cleanupRequested = req.query.cleanupInstalls === 'true';
-      const testFollowLink = req.query.testFollowLink as string | undefined;
-
       // Calculate expected site configuration
       const siteId =
         config.domain !== '' ? config.domain : `${config.projectID}-traceback`;
@@ -57,16 +46,6 @@ export const private_doctor = functions
       let initializationAttempted = false;
       let initializationError: string | undefined;
       let initResult: ExtensionInitializationResult;
-
-      // Initialize cleanup result
-      let cleanupResult:
-        | {
-            requested: boolean;
-            performed: boolean;
-            deletedCount: number;
-            error?: string;
-          }
-        | undefined;
 
       // Test Apple App Site Association (non-destructive)
       try {
@@ -104,8 +83,7 @@ export const private_doctor = functions
         initializationAttempted = true;
 
         // Call with createRemoteHost=false to run initialization check
-        // If testFollowLink is provided, it will create/update the example dynamic link
-        initResult = await privateInitialize(false, config, testFollowLink);
+        initResult = await privateInitialize(false, config);
 
         functions.logger.info(
           'Read-only initialization completed successfully:',
@@ -122,64 +100,6 @@ export const private_doctor = functions
           siteName: expectedSiteName,
           error: initializationError,
         };
-      }
-
-      // Handle cleanup if requested and running in emulator
-      if (cleanupRequested) {
-        const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
-        cleanupResult = {
-          requested: true,
-          performed: false,
-          deletedCount: 0,
-        };
-
-        if (isEmulator) {
-          try {
-            functions.logger.info(
-              'Performing cleanup of all installation records...',
-            );
-            const db = getFirestore();
-            const collection = db
-              .collection('_traceback_')
-              .doc('installs')
-              .collection('records');
-
-            // Get all documents
-            const snapshot = await collection.get();
-            cleanupResult.deletedCount = snapshot.docs.length;
-
-            if (snapshot.docs.length > 0) {
-              // Delete in batches of 500 (Firestore limit)
-              const batchSize = 500;
-              for (let i = 0; i < snapshot.docs.length; i += batchSize) {
-                const batch = db.batch();
-                const batchDocs = snapshot.docs.slice(i, i + batchSize);
-
-                batchDocs.forEach((doc) => {
-                  batch.delete(doc.ref);
-                });
-
-                await batch.commit();
-              }
-
-              cleanupResult.performed = true;
-              functions.logger.info(
-                `Cleanup completed: deleted ${cleanupResult.deletedCount} installation records`,
-              );
-            } else {
-              cleanupResult.performed = true;
-              functions.logger.info(
-                'Cleanup completed: no installation records to delete',
-              );
-            }
-          } catch (error: any) {
-            cleanupResult.error = error.message || 'Unknown cleanup error';
-            functions.logger.error('Cleanup failed:', cleanupResult.error);
-          }
-        } else {
-          cleanupResult.error = 'Cleanup only available in emulator mode';
-          functions.logger.warn('Cleanup requested but not in emulator mode');
-        }
       }
 
       const doctorResult: DoctorResult = {
@@ -203,7 +123,6 @@ export const private_doctor = functions
           initializationAttempted: initializationAttempted,
           initializationError: initializationError,
         },
-        cleanup: cleanupResult,
       };
 
       functions.logger.info('Doctor check completed:', doctorResult);
