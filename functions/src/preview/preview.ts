@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import * as admin from 'firebase-admin';
 import DynamicLink from '../types';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -9,11 +8,7 @@ import {
   AnalyticsEventType,
 } from '../analytics/track-analytics';
 import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
-import {
-  TRACEBACK_COLLECTION,
-  DYNAMICLINKS_DOC,
-  RECORDS_COLLECTION,
-} from '../common/constants';
+import { findDynamicLinkByPath } from '../common/link-lookup';
 
 export const link_preview = async function (
   req: Request,
@@ -23,40 +18,29 @@ export const link_preview = async function (
 ) {
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-  // Get Firestore instance
-  const db = admin.firestore();
-
-  const collection = db
-    .collection(TRACEBACK_COLLECTION)
-    .doc(DYNAMICLINKS_DOC)
-    .collection(RECORDS_COLLECTION);
-
   // Parse link data
   const urlObject = new URL(req.baseUrl, 'https://example.com');
   const linkPath = urlObject.pathname;
 
-  // Fetch link document
-  const snapshotQuery = collection.where('path', '==', linkPath).limit(1);
-  const linkSnapshot = await snapshotQuery.get();
+  // Find the dynamic link by path
+  const linkResult = await findDynamicLinkByPath(linkPath);
 
   const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
   const scheme = isEmulator ? 'http' : 'https';
   // Always use the configured hostname (not req.headers.host which can be the Cloud Functions domain)
   const host = isEmulator ? (req.headers.host ?? hostname) : hostname;
 
-  // If not found, return 404
-  const linkFound = linkSnapshot.docs.length !== 0;
+  // If not found, return default response
   let source: string;
-  if (!linkFound) {
+  if (!linkResult) {
     source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
   } else {
     // If followLink is available, redirect with link parameter
-    const linkDoc = linkSnapshot.docs[0];
-    const dynamicLink = linkDoc.data() as DynamicLink;
+    const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
-      // Track the click before redirecting
-      await trackLinkAnalytics(linkDoc.id, AnalyticsEventType.OPEN);
+      // Track the open before redirecting
+      await trackLinkAnalytics(linkResult.id, AnalyticsEventType.CLICK);
 
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);

@@ -102,7 +102,7 @@ export const private_v1_postinstall_search_link = functions
         if (result.foundEntry.clipboard) {
           await trackLinkAnalyticsByUrl(
             result.foundEntry.clipboard,
-            AnalyticsEventType.INSTALL,
+            AnalyticsEventType.APP_FIRST_OPEN_INSTALL,
           );
         }
 
@@ -657,7 +657,7 @@ export const private_v1_preinstall_save_link = async (
     if (heuristics.clipboard) {
       await trackLinkAnalyticsByUrl(
         heuristics.clipboard,
-        AnalyticsEventType.CLICK,
+        AnalyticsEventType.REDIRECT,
       );
     }
 

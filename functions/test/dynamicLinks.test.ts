@@ -5,7 +5,6 @@ import {
   getTestFirestore,
   clearDynamicLinkRecords,
   cleanupTestFirebase,
-  sleep,
 } from './test-utils';
 import { createDynamicLink, testLinks } from './link-helpers';
 import {
@@ -43,9 +42,6 @@ describe('Dynamic Link Redirect', () => {
     // 1. Create a test dynamic link
     await createDynamicLink(testLinks.example);
 
-    // Small delay to ensure Firestore write completes
-    await sleep(500);
-
     // 2. Request the /example path (which should have the test link)
     const linkResponse = await request(HOST_BASE_URL)
       .get('/example')
@@ -71,8 +67,6 @@ describe('Dynamic Link Redirect', () => {
   test('should return HTML preview when link parameter already exists', async () => {
     // 1. Create a test dynamic link
     await createDynamicLink(testLinks.example);
-
-    await sleep(100);
 
     // 2. Request with link parameter already in URL - should not redirect again
     const linkResponse = await request(HOST_BASE_URL)
@@ -116,10 +110,7 @@ describe('Dynamic Link Redirect', () => {
 
       expect(response.statusCode).toBe(302);
 
-      // 3. Allow time for analytics to be written
-      await sleep(1000);
-
-      // 4. Verify analytics for that dynamic link has opens: 1 for today's date
+      // 3. Verify analytics for that dynamic link has clicks: 1 for today's date
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -128,7 +119,7 @@ describe('Dynamic Link Redirect', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.opens).toBe(1);
+      expect(analyticsData?.clicks).toBe(1);
     });
 
     test('should track as many analytics as openings of the dynamic link (2)', async () => {
@@ -148,10 +139,7 @@ describe('Dynamic Link Redirect', () => {
       await request(HOST_BASE_URL).get('/feature').redirects(0);
       await request(HOST_BASE_URL).get('/feature').redirects(0);
 
-      // 3. Allow time for analytics to be written
-      await sleep(1000);
-
-      // 4. Verify analytics shows opens: 2
+      // 3. Verify analytics shows clicks: 2
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -160,10 +148,10 @@ describe('Dynamic Link Redirect', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.opens).toBe(2);
+      expect(analyticsData?.clicks).toBe(2);
     });
 
-    test('should track 1 open and 1 click when opening dynamic link and calling preinstall link creation', async () => {
+    test('should track 1 click and 1 redirect when opening dynamic link and calling preinstall link creation', async () => {
       // 1. Create a dummy dynamic link with path /feature
       const linkDoc = await db
         .collection(TRACEBACK_COLLECTION)
@@ -178,10 +166,10 @@ describe('Dynamic Link Redirect', () => {
 
       const linkUrl = `${HOST_BASE_URL}/feature`;
 
-      // 2. Request to the host URL /feature (open)
+      // 2. Request to the host URL /feature (click)
       await request(HOST_BASE_URL).get('/feature').redirects(0);
 
-      // 3. Call preinstall link creation with clipboard containing the link (click)
+      // 3. Call preinstall link creation with clipboard containing the link (redirect)
       await request(HOST_BASE_URL)
         .post('/v1_preinstall_save_link')
         .send({
@@ -196,10 +184,7 @@ describe('Dynamic Link Redirect', () => {
           clipboard: linkUrl,
         });
 
-      // 4. Allow time for analytics to be written
-      await sleep(1000);
-
-      // 5. Verify analytics shows opens: 1, clicks: 1
+      // 4. Verify analytics shows clicks: 1, redirects: 1
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -208,11 +193,11 @@ describe('Dynamic Link Redirect', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.opens).toBe(1);
       expect(analyticsData?.clicks).toBe(1);
+      expect(analyticsData?.redirects).toBe(1);
     });
 
-    test('should track 1 open, 1 click and 1 install when opening dynamic link, calling preinstall and calling post-install', async () => {
+    test('should track 1 click, 1 redirect and 1 install when opening dynamic link, calling preinstall and calling post-install', async () => {
       // 1. Create a dummy dynamic link with path /feature
       const linkDoc = await db
         .collection(TRACEBACK_COLLECTION)
@@ -227,10 +212,10 @@ describe('Dynamic Link Redirect', () => {
 
       const linkUrl = `${HOST_BASE_URL}/feature`;
 
-      // 2. Request to the host URL /feature (open)
+      // 2. Request to the host URL /feature (click)
       await request(HOST_BASE_URL).get('/feature').redirects(0);
 
-      // 3. Call preinstall link creation with clipboard containing the link (click)
+      // 3. Call preinstall link creation with clipboard containing the link (redirect)
       await request(HOST_BASE_URL)
         .post('/v1_preinstall_save_link')
         .send({
@@ -264,10 +249,7 @@ describe('Dynamic Link Redirect', () => {
           },
         });
 
-      // 5. Allow time for analytics to be written
-      await sleep(1000);
-
-      // 6. Verify analytics shows opens: 1, clicks: 1, installs: 1
+      // 5. Verify analytics shows clicks: 1, redirects: 1, first_opens_install: 1
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -276,9 +258,9 @@ describe('Dynamic Link Redirect', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.opens).toBe(1);
       expect(analyticsData?.clicks).toBe(1);
-      expect(analyticsData?.installs).toBe(1);
+      expect(analyticsData?.redirects).toBe(1);
+      expect(analyticsData?.first_opens_install).toBe(1);
     });
   });
 });

@@ -13,6 +13,7 @@ import { asset_links } from './wellknown/android';
 import { link_preview } from './preview/preview';
 import { private_doctor } from './doctor';
 import { privateInitialize } from './lifecycle/initialize';
+import { private_v1_get_campaign } from './campaigns/campaigns';
 
 //
 // # Lifecycle: initialization
@@ -115,6 +116,9 @@ app.post('/v1_preinstall_save_link', private_v1_preinstall_save_link);
 
 // ## Doctor endpoint
 app.get('/v1_doctor', private_doctor);
+
+// ## Get campaign endpoint
+app.get('/v1_get_campaign', private_v1_get_campaign);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {

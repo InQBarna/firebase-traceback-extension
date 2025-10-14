@@ -6,7 +6,6 @@ import {
   clearInstallRecords,
   cleanupTestFirebase,
   generateUniqueTestId,
-  sleep,
 } from './test-utils';
 
 // Initialize Firebase Admin for testing (use default project ID)
@@ -589,9 +588,6 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
       .post('/v1_preinstall_save_link')
       .send(heuristics1);
     expect(store1Response.statusCode).toBe(200);
-
-    // Wait a moment to ensure different timestamps
-    await sleep(100);
 
     // Create second entry with better match
     const heuristics2: DeviceHeuristics = {

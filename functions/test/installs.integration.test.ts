@@ -12,7 +12,6 @@ import {
   getTestFirestore,
   clearInstallRecords,
   cleanupTestFirebase,
-  sleep,
 } from './test-utils';
 
 const HOST_BASE_URL = getTestApiUrl();
@@ -102,10 +101,10 @@ describe('Install Attribution - Integration Tests', () => {
 
       const linkUrl = `${HOST_BASE_URL}/summer`;
 
-      // 2. Request the dynamic link to track an "open"
+      // 2. Request the dynamic link to track a "click"
       await request(HOST_BASE_URL).get('/summer').redirects(0);
 
-      // 3. Save device heuristics with clipboard pointing to the link (tracks "click")
+      // 3. Save device heuristics with clipboard pointing to the link (tracks "redirect")
       const deviceHeuristics = {
         language: 'en-US',
         languages: ['en-US'],
@@ -124,10 +123,7 @@ describe('Install Attribution - Integration Tests', () => {
 
       expect(response.statusCode).toBe(200);
 
-      // 4. Allow time for analytics to be written
-      await sleep(1000);
-
-      // 5. Verify analytics were tracked (opens: 1, clicks: 1)
+      // 4. Verify analytics were tracked (clicks: 1, redirects: 1)
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -136,9 +132,8 @@ describe('Install Attribution - Integration Tests', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.opens).toBe(1);
       expect(analyticsData?.clicks).toBe(1);
-      expect(analyticsData?.installs).toBeDefined();
+      expect(analyticsData?.redirects).toBe(1);
     });
 
     test('should handle invalid payload gracefully', async () => {

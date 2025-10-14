@@ -8,16 +8,18 @@ import {
 
 interface LinkAnalytics {
   clicks: number;
-  opens: number;
-  installs: number;
+  redirects: number;
+  first_opens_intent: number;
+  first_opens_install: number;
   reopens: number;
 }
 
 export enum AnalyticsEventType {
   CLICK = 'clicks',
-  OPEN = 'opens',
-  INSTALL = 'installs',
-  REOPEN = 'reopens',
+  REDIRECT = 'redirects',
+  APP_FIRST_OPEN_INTENT = 'first_opens_intent',
+  APP_FIRST_OPEN_INSTALL = 'first_opens_install',
+  APP_REOPEN = 'reopens',
 }
 
 export async function trackLinkAnalytics(
@@ -47,8 +49,9 @@ export async function trackLinkAnalytics(
       } else {
         const newAnalytics: LinkAnalytics = {
           clicks: 0,
-          opens: 0,
-          installs: 0,
+          redirects: 0,
+          first_opens_intent: 0,
+          first_opens_install: 0,
           reopens: 0,
         };
         newAnalytics[eventType] = 1;
