@@ -14,6 +14,10 @@ import { link_preview } from './preview/preview';
 import { private_doctor } from './doctor';
 import { privateInitialize } from './lifecycle/initialize';
 import { private_v1_get_campaign } from './campaigns/campaigns';
+import {
+  private_v1_campaigns,
+  private_v1_campaign_debug,
+} from './campaigns/campaign-debug';
 
 //
 // # Lifecycle: initialization
@@ -119,6 +123,12 @@ app.get('/v1_doctor', private_doctor);
 
 // ## Get campaign endpoint
 app.get('/v1_get_campaign', private_v1_get_campaign);
+
+// ## Campaign listing (JSON)
+app.get('/v1_campaigns', private_v1_campaigns);
+
+// ## Campaign debug (HTML for QA)
+app.get('/v1_campaign_debug', private_v1_campaign_debug);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {
