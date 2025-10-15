@@ -1,5 +1,9 @@
 import * as admin from 'firebase-admin';
-import { TRACEBACK_COLLECTION, APIKEYS_DOC, RECORDS_COLLECTION } from '../src/common/constants';
+import {
+  TRACEBACK_COLLECTION,
+  APIKEYS_DOC,
+  RECORDS_COLLECTION,
+} from '../src/common/constants';
 import { initializeFirebase, getEnvironment } from './setup-dummy-data';
 
 // Initialize Firebase

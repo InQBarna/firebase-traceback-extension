@@ -55,15 +55,7 @@ export const privateInitialize = async function (
       );
 
       // Still create sample data even if site exists
-      try {
-        await createSampleDynamicLink(siteID);
-        await createSampleAPIKey();
-      } catch (error) {
-        functions.logger.error(
-          '[INIT] Error creating sample data for existing site:',
-          error,
-        );
-      }
+      await createSamples(siteID);
 
       return {
         siteAlreadyExisted: true,
@@ -100,6 +92,10 @@ export const privateInitialize = async function (
       functions.logger.warn(
         '[INIT] Could not create hosting version, site may already exist',
       );
+
+      // Still create sample data even if hosting version creation failed
+      await createSamples(siteID);
+
       return {
         siteAlreadyExisted: true,
         siteCreatedViaAPI: false,
@@ -117,13 +113,8 @@ export const privateInitialize = async function (
     functions.logger.info('[INIT] Deploying hosting version');
     await firebaseService.deployVersion(siteID, versionID);
 
-    // Create a sample dynamic link to help users understand how to use the extension
-    functions.logger.info('[INIT] Creating sample dynamic link');
-    await createSampleDynamicLink(siteID);
-
-    // Create a default API key for accessing secured endpoints
-    functions.logger.info('[INIT] Creating default API key');
-    await createSampleAPIKey();
+    // Create sample data (dynamic link and API key)
+    await createSamples(siteID);
   }
 
   if (createRemoteHost) {
@@ -136,7 +127,9 @@ export const privateInitialize = async function (
       functions.logger.warn('[INIT] Cold start request failed:', error);
     }
 
-    functions.logger.info('[INIT] Extension initialization completed successfully');
+    functions.logger.info(
+      '[INIT] Extension initialization completed successfully',
+    );
     return {
       siteAlreadyExisted: false,
       siteCreatedViaAPI: true,
@@ -144,7 +137,9 @@ export const privateInitialize = async function (
       error: undefined,
     } as ExtensionInitializationResult;
   } else {
-    functions.logger.info('[INIT] Extension initialization completed (no remote host)');
+    functions.logger.info(
+      '[INIT] Extension initialization completed (no remote host)',
+    );
     return {
       siteAlreadyExisted: false,
       siteCreatedViaAPI: false,
@@ -153,6 +148,22 @@ export const privateInitialize = async function (
     } as ExtensionInitializationResult;
   }
 };
+
+/**
+ * Creates sample data (dynamic link and API key) during extension initialization/update
+ * Only creates if the respective data doesn't already exist
+ */
+async function createSamples(siteId: string): Promise<void> {
+  functions.logger.info('[INIT:SAMPLES] Creating sample data');
+
+  // Create sample dynamic link if needed
+  await createSampleDynamicLink(siteId);
+
+  // Create default API key if needed
+  await createSampleAPIKey();
+
+  functions.logger.info('[INIT:SAMPLES] Sample data creation completed');
+}
 
 /**
  * Creates a sample dynamic link during extension initialization/update
@@ -171,7 +182,9 @@ async function createSampleDynamicLink(siteId: string): Promise<void> {
       .doc(DYNAMICLINKS_DOC)
       .collection(RECORDS_COLLECTION);
 
-    functions.logger.info('[INIT:SAMPLE_LINK] Checking if any dynamic links exist');
+    functions.logger.info(
+      '[INIT:SAMPLE_LINK] Checking if any dynamic links exist',
+    );
 
     // Check if ANY dynamic links exist
     const anyLinksQuery = await collection.limit(1).get();
@@ -186,7 +199,9 @@ async function createSampleDynamicLink(siteId: string): Promise<void> {
       return;
     }
 
-    functions.logger.info('[INIT:SAMPLE_LINK] No dynamic links found, creating sample link');
+    functions.logger.info(
+      '[INIT:SAMPLE_LINK] No dynamic links found, creating sample link',
+    );
 
     const sampleLink = getSampleLink(siteId);
     functions.logger.info('[INIT:SAMPLE_LINK] Sample link data prepared', {
@@ -250,7 +265,9 @@ async function createSampleAPIKey(): Promise<void> {
       return;
     }
 
-    functions.logger.info('[INIT:API_KEY] No API keys found, creating default API key');
+    functions.logger.info(
+      '[INIT:API_KEY] No API keys found, creating default API key',
+    );
 
     // Generate random API key using UUID v4
     const apiKeyValue = uuidv4();
@@ -265,10 +282,13 @@ async function createSampleAPIKey(): Promise<void> {
       createdAt: admin.firestore.Timestamp.now(),
     });
 
-    functions.logger.info('[INIT:API_KEY] Successfully created default API key', {
-      docId: docRef.id,
-      apiKey: apiKeyValue,
-    });
+    functions.logger.info(
+      '[INIT:API_KEY] Successfully created default API key',
+      {
+        docId: docRef.id,
+        apiKey: apiKeyValue,
+      },
+    );
   } catch (error) {
     // Log error but don't fail the initialization
     functions.logger.error('[INIT:API_KEY] Failed to create sample API key', {

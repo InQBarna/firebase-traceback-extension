@@ -132,7 +132,9 @@ async function createDummyLinks() {
     `\n✓ Successfully created ${dummyLinks.length} dummy links with analytics in ${environment}!`,
   );
   console.log('\n✅ Dummy links creation complete!');
-  console.log('\n💡 Tip: Run "npm run init:apikey" to create a default API key');
+  console.log(
+    '\n💡 Tip: Run "npm run init:apikey" to create a default API key',
+  );
   process.exit(0);
 }
 
