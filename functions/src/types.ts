@@ -9,3 +9,9 @@ export default interface DynamicLink {
   followLink?: string;
   expires?: Timestamp;
 }
+
+export interface APIKey {
+  value: string;
+  description: string;
+  createdAt?: Timestamp;
+}

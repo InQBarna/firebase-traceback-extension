@@ -4,7 +4,9 @@ import {
   INSTALLS_DOC,
   RECORDS_COLLECTION,
   DYNAMICLINKS_DOC,
+  APIKEYS_DOC,
 } from '../src/common/constants';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Get the base URL for the test API
@@ -127,4 +129,53 @@ export const generateUniqueTestId = (): string => {
  */
 export const sleep = (ms: number): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+/**
+ * Create a test API key in the database
+ * Returns the API key value to use in test requests
+ */
+export const createTestApiKey = async (
+  description = 'Test API key',
+): Promise<string> => {
+  const db = getTestFirestore();
+  const apiKeyValue = uuidv4();
+
+  await db
+    .collection(TRACEBACK_COLLECTION)
+    .doc(APIKEYS_DOC)
+    .collection(RECORDS_COLLECTION)
+    .add({
+      value: apiKeyValue,
+      description,
+      createdAt: admin.firestore.Timestamp.now(),
+    });
+
+  return apiKeyValue;
+};
+
+/**
+ * Clear all API key records from the test database
+ */
+export const clearApiKeyRecords = async (): Promise<void> => {
+  const db = getTestFirestore();
+  const apiKeysRef = db
+    .collection(TRACEBACK_COLLECTION)
+    .doc(APIKEYS_DOC)
+    .collection(RECORDS_COLLECTION);
+
+  const snapshot = await apiKeysRef.get();
+
+  if (snapshot.empty) {
+    return;
+  }
+
+  // Delete in batches if more than 500 (Firestore limit)
+  const batchSize = 500;
+  for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+    const batch = db.batch();
+    const batchDocs = snapshot.docs.slice(i, i + batchSize);
+    batchDocs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  }
 };

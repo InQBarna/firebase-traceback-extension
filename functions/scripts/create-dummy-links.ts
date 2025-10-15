@@ -7,39 +7,10 @@ import {
   ANALYTICS_COLLECTION,
 } from '../src/common/constants';
 import { additionalSampleLinks } from '../src/common/sample-links';
+import { initializeFirebase, getEnvironment } from './setup-dummy-data';
 
-// Check if running in production mode
-const isProduction = process.argv.includes('--prod');
-
-if (isProduction) {
-  console.log('🔧 Using Production Firebase\n');
-
-  // Check for credentials
-  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    console.error(
-      '❌ Error: GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.',
-    );
-    console.error(
-      'Please set it to the path of your service account key JSON file.',
-    );
-    process.exit(1);
-  }
-
-  // Initialize with service account credentials
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
-} else {
-  console.log('🔧 Using Firebase Emulators\n');
-
-  // Set emulator environment variables
-  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
-
-  // Initialize for emulator
-  admin.initializeApp({
-    projectId: 'iqbdemocms',
-  });
-}
+// Initialize Firebase
+initializeFirebase();
 
 const db = admin.firestore();
 
@@ -135,7 +106,7 @@ async function createAnalyticsForLink(linkId: string, linkName: string) {
 }
 
 async function createDummyLinks() {
-  const environment = isProduction ? 'production' : 'local emulator';
+  const environment = getEnvironment();
   console.log(`Creating dummy links and analytics in ${environment}...\n`);
 
   const linksCollection = db
@@ -160,6 +131,8 @@ async function createDummyLinks() {
   console.log(
     `\n✓ Successfully created ${dummyLinks.length} dummy links with analytics in ${environment}!`,
   );
+  console.log('\n✅ Dummy links creation complete!');
+  console.log('\n💡 Tip: Run "npm run init:apikey" to create a default API key');
   process.exit(0);
 }
 

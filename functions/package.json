@@ -9,7 +9,11 @@
     "test": "jest",
     "script": "ts-node --project tsconfig.scripts.json",
     "init:links": "npm run script scripts/create-dummy-links.ts",
-    "init:links:prod": "npm run script scripts/create-dummy-links.ts -- --prod"
+    "init:links:prod": "npm run script scripts/create-dummy-links.ts -- --prod",
+    "init:apikey": "npm run script scripts/create-api-key.ts",
+    "init:apikey:prod": "npm run script scripts/create-api-key.ts -- --prod",
+    "init:all": "npm run init:links && npm run init:apikey",
+    "init:all:prod": "npm run init:links:prod && npm run init:apikey:prod"
   },
   "main": "lib/index.js",
   "dependencies": {

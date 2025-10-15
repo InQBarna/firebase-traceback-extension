@@ -6,7 +6,10 @@ import {
   clearInstallRecords,
   cleanupTestFirebase,
   generateUniqueTestId,
+  createTestApiKey,
+  clearApiKeyRecords,
 } from './test-utils';
+import { API_KEY_HEADER } from '../src/common/constants';
 
 // Initialize Firebase Admin for testing (use default project ID)
 initializeTestFirebase();
@@ -679,10 +682,22 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
 });
 
 describe('TraceBack API Integration doctor', () => {
-  test('Doctor endpoint success', async () => {
-    // 1. Send to /v1_preinstall_save_link
+  let testApiKey: string;
+
+  beforeEach(async () => {
+    // Create a test API key before each test
+    testApiKey = await createTestApiKey('Test API key for doctor endpoint');
+  });
+
+  afterEach(async () => {
+    // Clean up API keys after each test
+    await clearApiKeyRecords();
+  });
+
+  test('Doctor endpoint success with valid API key', async () => {
     const doctorResponse = await request(HOST_BASE_URL)
       .get('/v1_doctor')
+      .set(API_KEY_HEADER, testApiKey)
       .send();
 
     expect(doctorResponse.statusCode).toBe(200);
@@ -690,6 +705,25 @@ describe('TraceBack API Integration doctor', () => {
     expect(doctorResponse.body.extensionInitialization.siteAlreadyExisted).toBe(
       false, // In emulator/demo mode, site doesn't pre-exist
     );
+  });
+
+  test('Doctor endpoint fails without API key', async () => {
+    const doctorResponse = await request(HOST_BASE_URL)
+      .get('/v1_doctor')
+      .send();
+
+    expect(doctorResponse.statusCode).toBe(401);
+    expect(doctorResponse.body.error).toBe('API key required');
+  });
+
+  test('Doctor endpoint fails with invalid API key', async () => {
+    const doctorResponse = await request(HOST_BASE_URL)
+      .get('/v1_doctor')
+      .set(API_KEY_HEADER, 'invalid-api-key-12345')
+      .send();
+
+    expect(doctorResponse.statusCode).toBe(403);
+    expect(doctorResponse.body.error).toBe('Invalid API key');
   });
 });
 

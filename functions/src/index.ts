@@ -18,6 +18,7 @@ import {
   private_v1_campaigns,
   private_v1_campaign_debug,
 } from './campaigns/campaign-debug';
+import { validateApiKey } from './middleware/api-key-auth';
 
 //
 // # Lifecycle: initialization
@@ -118,17 +119,17 @@ app.use('/images', express.static(path.join(__dirname, './assets/images')));
 // ## Log device installs / heuristics when opening the app in browser (pre-install)
 app.post('/v1_preinstall_save_link', private_v1_preinstall_save_link);
 
-// ## Doctor endpoint
-app.get('/v1_doctor', private_doctor);
+// ## Doctor endpoint (secured with API key)
+app.get('/v1_doctor', validateApiKey, private_doctor);
 
 // ## Get campaign endpoint
 app.get('/v1_get_campaign', private_v1_get_campaign);
 
-// ## Campaign listing (JSON)
-app.get('/v1_campaigns', private_v1_campaigns);
+// ## Campaign listing (JSON, secured with API key)
+app.get('/v1_campaigns', validateApiKey, private_v1_campaigns);
 
-// ## Campaign debug (HTML for QA)
-app.get('/v1_campaign_debug', private_v1_campaign_debug);
+// ## Campaign debug (HTML for QA, secured with API key)
+app.get('/v1_campaign_debug', validateApiKey, private_v1_campaign_debug);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {

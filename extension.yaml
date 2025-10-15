@@ -67,6 +67,9 @@ lifecycleEvents:
   onInstall:
     function: initialize
     processingMessage: Initializing the extension... May take some minutes to complete.
+  onUpdate:
+    function: initialize
+    processingMessage: Updating the extension... May take some minutes to complete.
 
 params:
   - param: LOCATION
