@@ -46,17 +46,7 @@ resources:
   - name: dynamichostingcontent
     type: firebaseextensions.v1beta.function
     description: >-
-      Serve dynamic content for associated domain endpoints.
-    properties:
-      location: ${LOCATION}
-      httpsTrigger: {}
-      runtime: 'nodejs20'
-      minInstances: ${MIN_INSTANCES}
-
-  - name: doctor
-    type: firebaseextensions.v1beta.function
-    description: >-
-      Endpoint to test extension installation. Should be used only by developers
+      Serve dynamic content for associated domain endpoints including health checks.
     properties:
       location: ${LOCATION}
       httpsTrigger: {}

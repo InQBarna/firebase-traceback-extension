@@ -65,12 +65,6 @@ exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
 const app = express();
 
 //
-// # Doctor (exported as standalone function)
-//
-
-exports.doctor = private_doctor;
-
-//
 // # Post install cloud function endpoint
 //
 
