@@ -16,7 +16,7 @@ Missing a feature or found a bug? Feel free to submit a [bug report or a feature
 
 ## Details
 
-Traceback is a replacement of [Dynamic Links](https://firebase.google.com/support/dynamic-links-faq) wich are being deprecated.
+Traceback is a replacement of [Dynamic Links](https://firebase.google.com/support/dynamic-links-faq) which are being deprecated.
 
 This extension allows you to setup your associated domain for iOS and android opening universal / deep links.
 Either an existing or new **Firebase Hosting** website & domain will be automatically created during initialization
@@ -27,7 +27,7 @@ You can also setup dynamic links in a **Cloud Firestore** collection.
 
 ### Manual / Firebase Console
 
-Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/traceback@0.5.0-beta.0).
+Follow [this link](https://console.firebase.google.com/project/_/extensions/install?ref=inqbarna/traceback@0.5.0).
 
 ### Using Firebase CLI
 
@@ -57,7 +57,7 @@ To install an extension, your project must be on the [Blaze (pay as you go) plan
 This extension uses other Firebase and Google Cloud Platform services, which have associated charges if you exceed the service’s no-cost tier:
 
 - Cloud Firestore
-- Cloud Functions (Node.js 10+ runtime. [See FAQs](https://firebase.google.com/support/faq#extensions-pricing))
+- Cloud Functions (Node.js 20 runtime. [See FAQs](https://firebase.google.com/support/faq#extensions-pricing))
 
 ## Client side integration
 
@@ -71,9 +71,12 @@ The Android SDK can be found [here](https://github.com/InQBarna/traceback-androi
 
 ## Creating links
 
-### Manually
+### Manually via Firestore
 
-TODO:
+You can create dynamic links by adding documents to the Firestore collection:
+`_traceback_/dynamiclinks/records/`
+
+Each document should contain fields like `path`, `title`, `description`, `iosAppStoreId`, `androidPackageName`, etc. See the POSTINSTALL.md documentation for the complete Firestore structure.
 
 ## Contributing
 

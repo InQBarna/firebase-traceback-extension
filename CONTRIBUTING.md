@@ -62,3 +62,28 @@ firebase.json:
 firebase ext:uninstall traceback-extension
 firebase ext:install traceback-extension
 ```
+
+### Using setup scripts
+
+For development and testing, you can use the provided setup scripts:
+
+```bash
+# Create dummy links (emulator)
+npm run init:links
+
+# Create dummy links (production)
+npm run init:links:prod
+
+# Create API key (emulator)
+npm run init:apikey
+
+# Create API key (production)
+npm run init:apikey:prod
+
+# Create both links and API key (emulator)
+npm run init:all
+
+# Create both links and API key (production)
+npm run init:all:prod
+```
+

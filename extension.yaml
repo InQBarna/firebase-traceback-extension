@@ -23,13 +23,13 @@ billingRequired: true
 
 apis:
   - apiName: firebasehosting.googleapis.com
-    reason: Install script ensures a hosting is created as an assocaited domain.
+    reason: Install script ensures a hosting is created as an associated domain.
   - apiName: firestore.googleapis.com
     reason: Firestore is used to keep track of app installation traces, store dynamic campaign links to firestore.
 
 roles:
   - role: firebasehosting.admin
-    reason: Install script ensures a hosting is created as an assocaited domain.
+    reason: Install script ensures a hosting is created as an associated domain.
   - role: datastore.user
     reason: Firestore is used to keep track of app installation traces, store dynamic campaign links to firestore.
 
@@ -37,7 +37,7 @@ resources:
   - name: initialize
     type: firebaseextensions.v1beta.function
     description: >-
-      Creates a hosting as associated fomain.
+      Creates a hosting as associated domain.
     properties:
       location: ${LOCATION}
       taskQueueTrigger: {}
