@@ -59,7 +59,6 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
-const FUNCTIONS_BASE_URL = process.env.FUNCTIONS_URL ?? 'http://127.0.0.1:5001';
 
 describe('My Feature', () => {
   beforeEach(async () => {
@@ -72,15 +71,7 @@ describe('My Feature', () => {
     // 1. Setup data in Firestore
     await db.collection('myCollection').add({ ... });
 
-    // 2. Call Cloud Function
-    const response = await request(FUNCTIONS_BASE_URL)
-      .post('/demo-project/region/functionName')
-      .send({ ... });
-
-    // 3. Verify HTTP response
-    expect(response.statusCode).toBe(200);
-
-    // 4. Verify Firestore data
+    // 2. Verify Firestore data
     const doc = await db.collection('myCollection').doc('id').get();
     expect(doc.exists).toBe(true);
   });
@@ -94,7 +85,6 @@ To run tests against a real Firebase project (not recommended for CI):
 1. Set environment variables:
    ```bash
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-   export FUNCTIONS_URL=https://us-central1-your-project.cloudfunctions.net
    ```
 
 2. Update the Firebase Admin initialization in your test file to remove emulator settings.
@@ -108,8 +98,6 @@ To run tests against a real Firebase project (not recommended for CI):
 
 ## Environment Variables
 
-- `FUNCTIONS_URL` - Base URL for Cloud Functions (default: `http://127.0.0.1:5001`)
-- `FIRESTORE_EMULATOR_HOST` - Firestore emulator host (set automatically in tests: `localhost:8080`)
 - `TRACEBACK_API_URL` - Base URL for hosting (default: `http://127.0.0.1:5002`)
 - `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account key (for production tests only)
 

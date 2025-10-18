@@ -13,7 +13,7 @@ import { findDynamicLinkByPath } from '../common/link-lookup';
 export const link_preview = async function (
   req: Request,
   res: Response,
-  hostname: string,
+  siteId: string,
   config: Config,
 ) {
   const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
@@ -25,15 +25,17 @@ export const link_preview = async function (
   // Find the dynamic link by path
   const linkResult = await findDynamicLinkByPath(linkPath);
 
-  const fullUrl = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const host =
+    req.headers['x-forwarded-host'] ?? req.headers.host ?? siteId + '.web.app';
+  const fullUrl = `${req.protocol}://${host}${req.originalUrl}`;
   const scheme = isEmulator ? 'http' : 'https';
   // Always use the configured hostname (not req.headers.host which can be the Cloud Functions domain)
-  const host = isEmulator ? (req.headers.host ?? hostname) : hostname;
+  // const host = isEmulator ? (req.headers.host ?? hostname) : hostname;
 
   // If not found, return default response
   let source: string;
   if (!linkResult) {
-    source = await getUnknownLinkResponse(scheme, host, fullUrl, config);
+    source = await getUnknownLinkResponse(config);
   } else {
     // If followLink is available, redirect with link parameter
     const dynamicLink = linkResult.data;
@@ -48,7 +50,7 @@ export const link_preview = async function (
       res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }
-    source = await getPreviewLinkResponse(scheme, host, dynamicLink, config);
+    source = await getPreviewLinkResponse(dynamicLink, config);
   }
 
   res.setHeader('Cache-Control', 'no-cache');
@@ -65,21 +67,14 @@ interface LinkInfo {
 }
 
 async function getPreviewLinkResponse(
-  scheme: string,
-  host: string,
   dynamicLink: DynamicLink,
   config: Config,
 ): Promise<string> {
   const linkInfo = await getFirestoreDynamicLinkInfo(dynamicLink, config);
-  return getDynamicLinkHTMLResponse(scheme, host, linkInfo, config);
+  return getDynamicLinkHTMLResponse(linkInfo, config);
 }
 
-async function getUnknownLinkResponse(
-  scheme: string,
-  host: string,
-  url: string,
-  config: Config,
-): Promise<string> {
+async function getUnknownLinkResponse(config: Config): Promise<string> {
   // Get iOS AppStore appID
   const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
     config.iosBundleID,
@@ -87,8 +82,6 @@ async function getUnknownLinkResponse(
   );
 
   return getDynamicLinkHTMLResponse(
-    scheme,
-    host,
     {
       title: '',
       description: 'app store description',
@@ -136,8 +129,6 @@ async function getFirestoreDynamicLinkInfo(
 }
 
 async function getDynamicLinkHTMLResponse(
-  scheme: string,
-  host: string,
   linkInfo: LinkInfo,
   config: Config,
 ): Promise<string> {

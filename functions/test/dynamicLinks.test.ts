@@ -59,8 +59,15 @@ describe('Dynamic Link Redirect', () => {
     expect(redirectUrl.pathname).toBe('/example');
 
     // 5. Verify redirect stays on hosting domain (not internal Cloud Functions domain)
-    expect(redirectUrl.hostname).toBe('127.0.0.1');
-    expect(redirectUrl.protocol).toBe('http:');
+    const expectedHostname = HOST_BASE_URL.includes('127.0.0.1')
+      ? '127.0.0.1'
+      : new URL(HOST_BASE_URL).hostname;
+    const expectedProtocol = HOST_BASE_URL.startsWith('https')
+      ? 'https:'
+      : 'http:';
+
+    expect(redirectUrl.hostname).toBe(expectedHostname);
+    expect(redirectUrl.protocol).toBe(expectedProtocol);
     expect(redirectUrl.href).not.toContain('cloudfunctions.net');
   });
 

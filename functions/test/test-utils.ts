@@ -7,6 +7,7 @@ import {
   APIKEYS_DOC,
 } from '../src/common/constants';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
 
 /**
  * Get the base URL for the test API
@@ -17,20 +18,42 @@ export const getTestApiUrl = (): string => {
 };
 
 /**
- * Initialize Firebase Admin SDK for testing with emulator
+ * Initialize Firebase Admin SDK for testing
+ * Uses emulator by default, but connects to production if GOOGLE_APPLICATION_CREDENTIALS is set
  * Only initializes once, safe to call multiple times
  * Always uses the same project ID to ensure all tests share the same database
  */
 export const initializeTestFirebase = (
   projectId = 'iqbdemocms',
 ): admin.app.App => {
-  // Always set emulator host before initializing
-  process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
-
   if (!admin.apps.length) {
-    admin.initializeApp({
-      projectId,
-    });
+    // If GOOGLE_APPLICATION_CREDENTIALS is set, use production mode
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.log(
+        '🔧 Using Production Firebase (GOOGLE_APPLICATION_CREDENTIALS detected)',
+      );
+      console.log(
+        `   Credentials: ${process.env.GOOGLE_APPLICATION_CREDENTIALS}`,
+      );
+
+      // Read project ID from service account file
+      const serviceAccount = JSON.parse(
+        fs.readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'),
+      );
+      console.log(`   Project ID: ${serviceAccount.project_id}`);
+
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        projectId: serviceAccount.project_id,
+      });
+    } else {
+      // Otherwise use emulator
+      console.log('🔧 Using Firestore Emulator (localhost:8080)');
+      process.env.FIRESTORE_EMULATOR_HOST = 'localhost:8080';
+      admin.initializeApp({
+        projectId,
+      });
+    }
   }
   return admin.app();
 };

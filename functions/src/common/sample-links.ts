@@ -4,13 +4,13 @@ import DynamicLink from '../types';
  * Sample dynamic link that gets created when the extension is initialized
  * This serves as an example for users to understand how to create dynamic links
  */
-export const getSampleLink = (siteId: string): DynamicLink => ({
+export const getSampleLink = (): DynamicLink => ({
   path: '/example',
   title: 'Example Dynamic Link',
   description:
     'This is a sample dynamic link created during extension initialization',
   followLink: 'https://example.com/products/sample',
-  image: `https://${siteId}.web.app/images/thumb.jpg`,
+  image: 'about:blank',
 });
 
 /**

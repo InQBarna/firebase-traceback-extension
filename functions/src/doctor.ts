@@ -5,6 +5,7 @@ import {
   ExtensionInitializationResult,
 } from './lifecycle/initialize';
 import axios from 'axios';
+import { getSiteId } from './common/site-utils';
 
 export interface DoctorResult {
   extensionInitialization: ExtensionInitializationResult;
@@ -33,12 +34,14 @@ export const private_doctor = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
     try {
+      // Get the actual host from the request (works with custom domains)
+      const actualHost = req.get('host') || getSiteId(config) + '.web.app';
+      const actualSiteName = `${req.protocol}://${actualHost}`;
+
       // Calculate expected site configuration
-      const siteId =
-        config.domain !== '' ? config.domain : `${config.projectID}-traceback`;
+      const siteId = getSiteId(config);
       const expectedSiteName = `https://${siteId}.web.app`;
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const appleAssociationURL = `${baseUrl}/.well-known/apple-app-site-association`;
+      const appleAssociationURL = `${actualSiteName}/.well-known/apple-app-site-association`;
 
       // Initialize diagnostics
       let appleAppSiteAssociationOk = false;
@@ -82,8 +85,8 @@ export const private_doctor = functions
         functions.logger.info('Attempting read-only initialization check...');
         initializationAttempted = true;
 
-        // Call with createRemoteHost=false to run initialization check
-        initResult = await privateInitialize(false, config);
+        // Call with createRemoteHost=false and createSetupData=false for read-only check
+        initResult = await privateInitialize(false, config, false);
 
         functions.logger.info(
           'Read-only initialization completed successfully:',
@@ -117,7 +120,7 @@ export const private_doctor = functions
         diagnostics: {
           siteId: siteId,
           expectedSiteName: expectedSiteName,
-          hostingURL: baseUrl,
+          hostingURL: actualSiteName,
           appleAssociationURL: appleAssociationURL,
           appleAssociationError: appleAssociationError,
           initializationAttempted: initializationAttempted,

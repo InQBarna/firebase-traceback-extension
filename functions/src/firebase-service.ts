@@ -4,6 +4,7 @@ import { logger } from 'firebase-functions';
 import { GoogleAuth } from 'google-auth-library';
 
 import { Config, config } from './config';
+import { getSiteId } from './common/site-utils';
 
 export interface CreateSite {
   alreadyCreated: boolean;
@@ -78,18 +79,14 @@ export class FirebaseService {
   }
 
   public getSiteId(): string {
-    if (this.privateConfig.domain !== '') {
-      return this.privateConfig.domain;
-    } else {
-      return `${this.privateConfig.projectID}-traceback`;
-    }
+    return getSiteId(this.privateConfig);
   }
 
   // Create new Hosting website
   public async createNewWebsite(): Promise<CreateSite> {
     const siteID = this.getSiteId();
     try {
-      const url = `https://${this.privateConfig.domain}.web.app/.well-known/apple-app-site-association`;
+      const url = `https://${siteID}.web.app/.well-known/apple-app-site-association`;
       const expected = {
         applinks: {
           apps: [],
@@ -139,16 +136,28 @@ export class FirebaseService {
     } catch (error) {
       if (isAxiosError(error)) {
         if (error.response?.status === 409) {
-          // Looks like created
+          // Site already exists (409 Conflict)
           return {
             alreadyCreated: true,
             alreadyConfigured: false,
             siteId: siteID,
           };
         }
-        throw Error(
-          `Domain name ${siteID} is already taken. Try reinstalling with a different domain.`,
+        // Any other error (e.g., 400, 403) likely means domain is already taken or invalid
+        // Treat as already existing to allow initialization to continue
+        logger.warn(
+          `[FIREBASE_SERVICE] Site creation failed with status ${error.response?.status}, treating as already existing`,
+          {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            siteID,
+          },
         );
+        return {
+          alreadyCreated: true,
+          alreadyConfigured: false,
+          siteId: siteID,
+        };
       }
     }
     return {

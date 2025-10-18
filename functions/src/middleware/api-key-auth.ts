@@ -23,7 +23,7 @@ export async function validateApiKey(
   if (!apiKey) {
     res.status(401).json({
       error: 'API key required',
-      message: `Please provide an API key in the ${API_KEY_HEADER} header`,
+      message: `Please provide an API key in the ${API_KEY_HEADER} header, configure api keys on firestore _traceback_/"API key required"`,
     });
     return;
   }

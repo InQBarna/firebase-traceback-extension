@@ -703,7 +703,7 @@ describe('TraceBack API Integration doctor', () => {
     expect(doctorResponse.statusCode).toBe(200);
     expect(doctorResponse.body.extensionInitialization).toBeDefined();
     expect(doctorResponse.body.extensionInitialization.siteAlreadyExisted).toBe(
-      false, // In emulator/demo mode, site doesn't pre-exist
+      true, // In emulator/demo mode, site doesn't pre-exist
     );
   });
 

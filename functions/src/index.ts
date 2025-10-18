@@ -19,6 +19,7 @@ import {
   private_v1_campaign_debug,
 } from './campaigns/campaign-debug';
 import { validateApiKey } from './middleware/api-key-auth';
+import { getSiteId } from './common/site-utils';
 
 //
 // # Lifecycle: initialization
@@ -26,20 +27,12 @@ import { validateApiKey } from './middleware/api-key-auth';
 
 // ## Initialize Firebase Admin SDK
 admin.initializeApp();
-function getSiteId(): string {
-  if (config.domain !== '') {
-    return config.domain;
-  } else {
-    return `${config.projectID}-traceback`;
-  }
-}
-const hostname = `${getSiteId()}.web.app`;
 
 // ## Initializate extension
 exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
   const { getExtensions } = await import('firebase-admin/extensions');
   try {
-    const initResult = await privateInitialize(true, config);
+    const initResult = await privateInitialize(true, config, true);
 
     // Finalize extension initialization
     await getExtensions()
@@ -128,7 +121,7 @@ app.get('/v1_campaign_debug', validateApiKey, private_v1_campaign_debug);
 // ## Handle all other routes
 app.use('*', async (req, res) => {
   try {
-    return await link_preview(req, res, hostname, config);
+    return await link_preview(req, res, getSiteId(config), config);
   } catch (error) {
     functions.logger.error('Error when opening link preview: ', error);
     return res.status(500).send('Internal Server Error');
