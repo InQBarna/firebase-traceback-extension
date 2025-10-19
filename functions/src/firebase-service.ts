@@ -78,15 +78,17 @@ export class FirebaseService {
     this.accessToken = accessToken;
   }
 
-  public getSiteId(): string {
+  public getHostingSiteId(): string {
     return getSiteId(this.privateConfig);
   }
 
-  // Create new Hosting website
-  public async createNewWebsite(): Promise<CreateSite> {
-    const siteID = this.getSiteId();
+  // Check if website already exists
+  public async checkWebsiteExists(): Promise<CreateSite | null> {
+    const hostingSiteID = this.getHostingSiteId();
+
+    // Check if site is already configured via apple-app-site-association
     try {
-      const url = `https://${siteID}.web.app/.well-known/apple-app-site-association`;
+      const url = `https://${hostingSiteID}.web.app/.well-known/apple-app-site-association`;
       const expected = {
         applinks: {
           apps: [],
@@ -111,27 +113,41 @@ export class FirebaseService {
         return {
           alreadyCreated: true,
           alreadyConfigured: true,
-          siteId: siteID,
+          siteId: hostingSiteID,
         };
       }
     } catch (_error) {
-      // Nice, continue
+      // Site not configured yet, continue checking
     }
 
+    // Check if site exists via API
     try {
-      const getUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites/${siteID}`;
+      const getUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites/${hostingSiteID}`;
       await axios.get(getUrl, { headers: this.jsonHeaders });
       return {
         alreadyCreated: true,
         alreadyConfigured: false,
-        siteId: siteID,
+        siteId: hostingSiteID,
       };
     } catch {
-      // Nice, continue
+      // Site does not exist
+    }
+
+    return null;
+  }
+
+  // Create new Hosting website
+  public async createHostingIfNoExisting(): Promise<CreateSite> {
+    const hostingSiteID = this.getHostingSiteId();
+
+    // Check if site already exists
+    const existingWebsite = await this.checkWebsiteExists();
+    if (existingWebsite) {
+      return existingWebsite;
     }
 
     try {
-      const postUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites?siteId=${siteID}`;
+      const postUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites?siteId=${hostingSiteID}`;
       await axios.post(postUrl, {}, { headers: this.jsonHeaders });
     } catch (error) {
       if (isAxiosError(error)) {
@@ -140,40 +156,40 @@ export class FirebaseService {
           return {
             alreadyCreated: true,
             alreadyConfigured: false,
-            siteId: siteID,
+            siteId: hostingSiteID,
           };
         }
         // Any other error (e.g., 400, 403) likely means domain is already taken or invalid
         // Treat as already existing to allow initialization to continue
         logger.warn(
-          `[FIREBASE_SERVICE] Site creation failed with status ${error.response?.status}, treating as already existing`,
+          `[FIREBASE_CLIENT] Site creation failed with status ${error.response?.status}, treating as already existing`,
           {
             status: error.response?.status,
             statusText: error.response?.statusText,
-            siteID,
+            siteID: hostingSiteID,
           },
         );
         return {
           alreadyCreated: true,
           alreadyConfigured: false,
-          siteId: siteID,
+          siteId: hostingSiteID,
         };
       }
     }
     return {
       alreadyCreated: true,
       alreadyConfigured: false,
-      siteId: siteID,
+      siteId: hostingSiteID,
     };
   }
 
   // Create new Hosting website version
   public async createNewVersion(
-    siteID: string,
+    hostingSiteID: string,
     config: any,
   ): Promise<string | undefined> {
     try {
-      const getUrl = `${this.firebaseHostingURL}/sites/${siteID}/versions`;
+      const getUrl = `${this.firebaseHostingURL}/sites/${hostingSiteID}/versions`;
       const versionsResult = await axios.get(getUrl, {
         headers: this.jsonHeaders,
       });
@@ -189,7 +205,7 @@ export class FirebaseService {
       // Nice, continue...
     }
 
-    const url = `${this.firebaseHostingURL}/sites/${siteID}/versions`;
+    const url = `${this.firebaseHostingURL}/sites/${hostingSiteID}/versions`;
     const versionResult = await axios.post(url, config, {
       headers: this.jsonHeaders,
     });

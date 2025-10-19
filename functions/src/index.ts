@@ -12,6 +12,7 @@ import { apple_app_size_association } from './wellknown/ios';
 import { asset_links } from './wellknown/android';
 import { link_preview } from './preview/preview';
 import { private_doctor } from './doctor';
+import { private_retry_initialize } from './retry-initialize';
 import { privateInitialize } from './lifecycle/initialize';
 import { private_v1_get_campaign } from './campaigns/campaigns';
 import {
@@ -108,6 +109,9 @@ app.post('/v1_preinstall_save_link', private_v1_preinstall_save_link);
 
 // ## Doctor endpoint (secured with API key)
 app.get('/v1_doctor', validateApiKey, private_doctor);
+
+// ## Retry initialization endpoint (secured with API key)
+app.post('/v1_retry_initialize', validateApiKey, private_retry_initialize);
 
 // ## Get campaign endpoint
 app.get('/v1_get_campaign', private_v1_get_campaign);

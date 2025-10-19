@@ -35,7 +35,11 @@ export const private_doctor = functions
   .https.onRequest(async (req, res): Promise<void> => {
     try {
       // Get the actual host from the request (works with custom domains)
-      const actualHost = req.get('host') || getSiteId(config) + '.web.app';
+      const actualHost =
+        req.headers['x-forwarded-host'] ??
+        req.headers.host ??
+        req.get('host') ??
+        getSiteId(config) + '.web.app' + '.web.app';
       const actualSiteName = `${req.protocol}://${actualHost}`;
 
       // Calculate expected site configuration

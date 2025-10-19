@@ -10,6 +10,7 @@ import {
   APIKEYS_DOC,
 } from '../common/constants';
 import { v4 as uuidv4 } from 'uuid';
+import { FirebaseService } from '../firebase-service';
 
 export interface SamplesCreated {
   dynamicLinkSampleAlreadyExisted: boolean;
@@ -50,13 +51,13 @@ export const privateInitialize = async function (
     const { FirebaseService } = await import('../firebase-service');
 
     // Initialize Firebase Service
-    functions.logger.info('[INIT] Initializing Firebase Service');
+    functions.logger.info('[INIT] Initializing Firebase Service Client');
     const firebaseService = new FirebaseService();
     await firebaseService.init(config);
-    const siteID = await firebaseService.getSiteId();
-    siteName = `https://${siteID}.web.app`;
-    functions.logger.info('[INIT] Firebase Service initialized', {
-      siteID,
+    const hostingSiteID = await firebaseService.getHostingSiteId();
+    siteName = `https://${hostingSiteID}.web.app`;
+    functions.logger.info('[INIT] Firebase Service Client initialized', {
+      siteID: hostingSiteID,
       siteName,
     });
 
@@ -65,10 +66,10 @@ export const privateInitialize = async function (
 
     if (createRemoteHost) {
       // Setup hosting and endpoints
-      const setupResult = await setupHostingAndEndpoints(
+      const setupResult = await setupHostingAndStaticResources(
         firebaseService,
         config,
-        siteID,
+        hostingSiteID,
       );
       siteAlreadyExisted = setupResult.siteAlreadyExisted;
 
@@ -89,7 +90,7 @@ export const privateInitialize = async function (
       }
 
       // Cold start the instance
-      await coldStart(siteID);
+      await coldStart(hostingSiteID);
 
       functions.logger.info(
         '[INIT] Extension initialization completed successfully',
@@ -102,20 +103,18 @@ export const privateInitialize = async function (
         samples: samplesCreated,
       } as ExtensionInitializationResult;
     } else {
-      // When createRemoteHost is false (e.g., called from doctor), check if site exists
+
       functions.logger.info(
         '[INIT] Extension initialization completed (no remote host - read-only check)',
       );
 
-      // Check if hosting site exists
       let siteExists = false;
-      try {
-        const siteResult = await firebaseService.createNewWebsite();
-        siteExists = siteResult.alreadyConfigured;
-        functions.logger.info('[INIT] Site existence check:', { siteExists });
-      } catch (error) {
-        functions.logger.warn('[INIT] Could not check site existence:', error);
-      }
+      const siteResult = await firebaseService.checkWebsiteExists();
+      siteExists = siteResult?.alreadyConfigured ?? false;
+      functions.logger.info(
+        '[INIT] Site existence check (' + hostingSiteID + ')',
+        { siteExists },
+      );
 
       return {
         siteAlreadyExisted: siteExists,
@@ -150,14 +149,14 @@ export const privateInitialize = async function (
 /**
  * Setup hosting site and configure endpoints
  */
-async function setupHostingAndEndpoints(
-  firebaseService: any,
+async function setupHostingAndStaticResources(
+  firebaseService: FirebaseService,
   config: Config,
   siteID: string,
 ): Promise<HostingSetupResult> {
   // Create a new website
-  functions.logger.info('[INIT] Creating new hosting site');
-  const siteResult = await firebaseService.createNewWebsite();
+  functions.logger.info('[INIT] Creating/checking new hosting site: ' + siteID);
+  const siteResult = await firebaseService.createHostingIfNoExisting();
   functions.logger.info('[INIT] Hosting site creation result', {
     alreadyConfigured: siteResult.alreadyConfigured,
     siteId: siteResult.siteId,
@@ -192,7 +191,7 @@ async function setupHostingAndEndpoints(
     siteResult.siteId,
     configPayload,
   );
-  functions.logger.info('[INIT] Hosting version created', { versionID });
+  functions.logger.info('[INIT] Hosting version created ' + versionID);
 
   if (versionID === undefined) {
     functions.logger.warn(
@@ -223,10 +222,13 @@ async function setupHostingAndEndpoints(
 /**
  * Cold start the hosting instance to warm it up
  */
-async function coldStart(siteID: string): Promise<void> {
-  functions.logger.info('[INIT] Cold starting the instance');
+async function coldStart(hostingSiteID: string): Promise<void> {
+  const endpoint: string = `https://${hostingSiteID}.web.app/example`;
+  functions.logger.info(
+    '[INIT] Cold starting the instance by calling "' + endpoint + '"',
+  );
   try {
-    await axios.get(`https://${siteID}.web.app/example`);
+    await axios.get(endpoint);
     functions.logger.info('[INIT] Cold start request completed');
   } catch (error) {
     functions.logger.warn('[INIT] Cold start request failed:', error);
