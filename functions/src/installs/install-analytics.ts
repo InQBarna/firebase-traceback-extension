@@ -17,7 +17,7 @@ export enum InstallAnalyticsType {
 /**
  * Analytics message for install attribution events
  */
-export interface InstallAnalyticsMessage {
+export interface PostInstallDebugLog {
   type: InstallAnalyticsType;
   message: string;
   debugObject: any | undefined;
@@ -27,8 +27,8 @@ export interface InstallAnalyticsMessage {
  * Log install analytics messages to Firebase Functions logger
  * @param analytics - Array of analytics messages to log
  */
-export function logInstallAnalytics(
-  analytics: InstallAnalyticsMessage[],
+export function logPostInstallDebugInfo(
+  analytics: PostInstallDebugLog[],
 ): void {
   for (const element of analytics) {
     const logData = JSON.stringify({ debugObject: element.debugObject });

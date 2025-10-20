@@ -9,6 +9,7 @@ import {
   DeviceHeuristics,
   SavedDeviceHeuristics,
   TraceBackMatchResponse,
+  Match,
 } from './types';
 import {
   trackLinkAnalyticsByUrl,
@@ -21,9 +22,10 @@ import {
 } from '../common/constants';
 import {
   InstallAnalyticsType,
-  InstallAnalyticsMessage,
-  logInstallAnalytics,
+  PostInstallDebugLog,
+  logPostInstallDebugInfo,
 } from './install-analytics';
+import { resolveTracebackLink } from '../common/link-lookup';
 
 export const deviceFingerprintSchema = Joi.object({
   appInstallationTime: Joi.number().required(),
@@ -60,8 +62,139 @@ enum MatchType {
 interface PostInstallResult {
   foundEntry: SavedDeviceHeuristics | undefined;
   matchType: MatchType;
-  analytics: InstallAnalyticsMessage[];
+  analytics: PostInstallDebugLog[];
   uuid: string | undefined;
+}
+
+/**
+ * Get human-readable match message for a given match type
+ */
+function getMatchMessage(matchType: MatchType): string {
+  switch (matchType) {
+    case MatchType.UNIQUE_CLIPBOARD:
+      return 'Link is uniquely matched for this device.';
+    case MatchType.SINGLE_HEURISTICS:
+      return 'Fuzzy link with this id with a single heuristics match';
+    case MatchType.MULTIPLE_HEURISTICS:
+      return 'Fuzzy link with this id with many scoring matches';
+    default:
+      return 'Unknown match type';
+  }
+}
+
+/**
+ * Save analytics for matched install
+ * @param result - The post-install search result
+ */
+async function saveMatchAnalytics(
+  postInstallSearchLink: string | undefined,
+  deep_link_id: string,
+): Promise<void> {
+  // Track install analytics for the matched link
+  if (postInstallSearchLink) {
+    await trackLinkAnalyticsByUrl(
+      postInstallSearchLink,
+      AnalyticsEventType.APP_FIRST_OPEN_INSTALL,
+    );
+  } else {
+    await trackLinkAnalyticsByUrl(
+      deep_link_id,
+      AnalyticsEventType.APP_FIRST_OPEN_INTENT,
+    );
+  }
+}
+
+/**
+ * Build the core match response handling intentLink logic
+ * @param result - The post-install search result
+ * @param fingerprint - The device fingerprint from the request
+ * @returns The partial match response (without IP and UTM fields)
+ */
+async function buildMatchResponse(
+  result: PostInstallResult,
+  fingerprint: DeviceFingerprint,
+): Promise<Match> {
+  if (result.foundEntry !== undefined) {
+    // Search successful - resolve clipboard in case it's a campaign link
+    const matchedClipboard = result.foundEntry.clipboard;
+    const matchedLink =
+      (await resolveTracebackLink(matchedClipboard)) ?? matchedClipboard;
+
+    // Check if intentLink is provided
+    if (fingerprint.intentLink) {
+      const resolvedIntentLink = await resolveTracebackLink(
+        fingerprint.intentLink,
+      );
+
+      // Compare resolved intent link with matched link
+      if (resolvedIntentLink && resolvedIntentLink !== matchedLink) {
+        // Intent link differs from matched link - return intent link
+        return {
+          matchedLink: matchedLink,
+          partialMatchResponse: {
+            deep_link_id: resolvedIntentLink,
+            match_type: result.matchType,
+            match_message: `Match found but intentLink differs. Returning intentLink.`,
+          },
+        };
+      }
+    }
+
+    // No intentLink or it matches - return matched link
+    return {
+      matchedLink: matchedLink,
+      partialMatchResponse: {
+        deep_link_id: matchedLink,
+        match_type: result.matchType,
+        match_message: getMatchMessage(result.matchType),
+      },
+    };
+  }
+
+  // Search failed - check for intentLink
+  if (fingerprint.intentLink) {
+    const resolvedIntentLink = await resolveTracebackLink(
+      fingerprint.intentLink,
+    );
+
+    if (resolvedIntentLink) {
+      // Return resolved intent link
+      return {
+        matchedLink: undefined,
+        partialMatchResponse: {
+          deep_link_id: resolvedIntentLink,
+          match_type: MatchType.NO_MATCH,
+          match_message: 'No matching install found. Returning intentLink.',
+        },
+      };
+    }
+  }
+
+  // Transform client clipboard if necessary
+  if (fingerprint.uniqueMatchLinkToCheck) {
+    const resolvedClipboardLink = await resolveTracebackLink(
+      fingerprint.uniqueMatchLinkToCheck,
+    );
+    return {
+      matchedLink: undefined,
+      partialMatchResponse: {
+        deep_link_id:
+          resolvedClipboardLink ?? fingerprint.uniqueMatchLinkToCheck,
+        match_type: MatchType.NO_MATCH,
+        match_message: 'No matching install found. Returning intentLink.',
+      },
+    };
+  }
+
+  // No intentLink or couldn't resolve - return default
+  return {
+    matchedLink: undefined,
+    partialMatchResponse: {
+      deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? undefined,
+      match_type: MatchType.NO_MATCH,
+      match_message: 'No matching install found.',
+    },
+  };
 }
 
 export const private_v1_postinstall_search_link = functions
@@ -90,55 +223,31 @@ export const private_v1_postinstall_search_link = functions
       const result = await searchPostInstall(fingerprint, ip, userAgent);
 
       // 2.- ANALYTICS
-      logInstallAnalytics(result.analytics);
+      logPostInstallDebugInfo(result.analytics);
 
       // 3.- Remove if grabbed
       if (result.uuid !== undefined) {
         removeFoundPostInstall(result.uuid);
       }
 
-      // 4.- RESPONSE (+ some more analytics)
-      if (result.foundEntry !== undefined) {
-        // Track install analytics for the matched link
-        if (result.foundEntry.clipboard) {
-          await trackLinkAnalyticsByUrl(
-            result.foundEntry.clipboard,
-            AnalyticsEventType.APP_FIRST_OPEN_INSTALL,
-          );
-        }
+      // 4.- RESPONSE
+      const resolvedResult = await buildMatchResponse(result, fingerprint);
 
-        const getMatchMessage = (matchType: MatchType): string => {
-          switch (matchType) {
-            case MatchType.UNIQUE_CLIPBOARD:
-              return 'Link is uniquely matched for this device.';
-            case MatchType.SINGLE_HEURISTICS:
-              return 'Fuzzy link with this id with a single heuristics match';
-            case MatchType.MULTIPLE_HEURISTICS:
-              return 'Fuzzy link with this id with many scoring matches';
-            default:
-              return 'Unknown match type';
-          }
-        };
-
-        const response: TraceBackMatchResponse = {
-          deep_link_id: result.foundEntry.clipboard,
-          match_message: getMatchMessage(result.matchType),
-          match_type: result.matchType,
-          request_ip_version: 'IP_V4',
-          utm_medium: undefined,
-          utm_source: undefined,
-        };
-        res.status(200).json(response);
-      } else {
-        res.status(200).json({
-          deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? undefined,
-          match_message: 'No matching install found.',
-          match_type: MatchType.NO_MATCH,
-          request_ip_version: 'IP_V4',
-          utm_medium: undefined,
-          utm_source: undefined,
-        } satisfies TraceBackMatchResponse);
+      // 5.- ANALYTICS
+      if (resolvedResult.partialMatchResponse.deep_link_id) {
+        await saveMatchAnalytics(
+          resolvedResult.matchedLink,
+          resolvedResult.partialMatchResponse.deep_link_id,
+        );
       }
+
+      const response: TraceBackMatchResponse = {
+        ...resolvedResult.partialMatchResponse,
+        request_ip_version: 'IP_V4',
+        utm_medium: undefined,
+        utm_source: undefined,
+      };
+      res.status(200).json(response);
     } catch (err) {
       console.error('Error matching fingerprint:', err);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -327,7 +436,7 @@ async function searchByHeuristics(
       uuid: undefined,
     };
   } else {
-    const analytics: InstallAnalyticsMessage[] = [];
+    const analytics: PostInstallDebugLog[] = [];
     const multipleMatches = matches.length > 1;
     if (multipleMatches) {
       const sameScore = bestMatchScore == bestSecondMatchScore;
@@ -380,7 +489,7 @@ async function searchByClipboardContent(
     };
   } else {
     const firstDoc = await snapshot.docs[0].data();
-    const analytics: InstallAnalyticsMessage[] = [];
+    const analytics: PostInstallDebugLog[] = [];
     if (snapshot.docs.length > 1) {
       analytics.push({
         type: InstallAnalyticsType.PASTEBOARD_MULTIPLE_MATCHES,

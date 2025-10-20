@@ -103,7 +103,6 @@ export const privateInitialize = async function (
         samples: samplesCreated,
       } as ExtensionInitializationResult;
     } else {
-
       functions.logger.info(
         '[INIT] Extension initialization completed (no remote host - read-only check)',
       );

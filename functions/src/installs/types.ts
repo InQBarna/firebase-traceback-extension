@@ -6,6 +6,7 @@ export interface DeviceFingerprint {
   osVersion: string;
   sdkVersion: string;
   uniqueMatchLinkToCheck?: string;
+  intentLink?: string;
   device: DeviceInfo;
 }
 
@@ -20,10 +21,18 @@ export interface DeviceInfo {
   timezone: string;
 }
 
-export interface TraceBackMatchResponse {
+export interface Match {
+  matchedLink: string | undefined;
+  partialMatchResponse: PartialTraceBackMatchResponse;
+}
+
+export interface PartialTraceBackMatchResponse {
   deep_link_id?: string;
   match_message: string;
   match_type: 'unique' | 'heuristics' | 'ambiguous' | 'none';
+}
+
+export interface TraceBackMatchResponse extends PartialTraceBackMatchResponse {
   request_ip_version: 'IP_V4' | 'IP_V6';
   utm_medium?: string;
   utm_source?: string;

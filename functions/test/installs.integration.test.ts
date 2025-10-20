@@ -13,6 +13,7 @@ import {
   cleanupTestFirebase,
   generateUniqueTestId,
 } from './test-utils';
+import { createDynamicLink } from './link-helpers';
 
 const HOST_BASE_URL = getTestApiUrl();
 
@@ -160,6 +161,67 @@ describe('Install Attribution - Integration Tests', () => {
         .get();
 
       expect(installDoc.exists).toBe(false);
+    });
+
+    test('should resolve campaign link in clipboard to followLink', async () => {
+      // 1. Create a dynamic link (campaign)
+      const campaignPath = '/winter-sale';
+      const followLink = 'https://example.com/products/winter-sale';
+      await createDynamicLink({
+        path: campaignPath,
+        title: 'Winter Sale Campaign',
+        description: 'Winter sale campaign',
+        followLink: followLink,
+      });
+
+      const clipboardCampaignUrl = `${HOST_BASE_URL}${campaignPath}`;
+
+      // 2. Create a preinstall record with campaign URL in clipboard
+      const installId = 'test-install-campaign-123';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          devicePixelRatio: 2,
+          platform: 'MacIntel',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardCampaignUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 3. Call postinstall search
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: clipboardCampaignUrl,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      // 4. Verify response returns the followLink (not the campaign URL)
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(followLink);
+      expect(response.body.match_type).toBe('unique');
+      expect(response.body.match_message).toContain('uniquely matched');
     });
   });
 
@@ -386,6 +448,180 @@ describe('Install Attribution - Integration Tests', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body.match_type).toBe('none');
+    });
+  });
+
+  describe('Install Search with intentLink', () => {
+    test('should return intentLink when search fails and intentLink is direct URL', async () => {
+      const intentLink = `${HOST_BASE_URL}/campaign?link=https://direct.example.com/product`;
+
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        intentLink: intentLink,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 9999,
+          screenResolutionHeight: 9999,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(
+        'https://direct.example.com/product',
+      );
+      expect(response.body.match_type).toBe('none');
+    });
+
+    test('should return campaign followLink when search fails and intentLink points to campaign', async () => {
+      // Create a campaign
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc('dynamiclinks')
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/summer-intent',
+          title: 'Summer Sale',
+          description: 'Test campaign',
+          followLink: 'https://example.com/summer-campaign',
+        });
+
+      const intentLink = `${HOST_BASE_URL}/summer-intent`;
+
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        intentLink: intentLink,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 9999,
+          screenResolutionHeight: 9999,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(
+        'https://example.com/summer-campaign',
+      );
+      expect(response.body.match_type).toBe('none');
+    });
+
+    test('should return matched link when search succeeds and intentLink matches', async () => {
+      const clipboardUrl = 'https://example.com/matched-intent';
+
+      // Create preinstall record
+      const installId = 'test-install-intent-match';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          devicePixelRatio: 2,
+          platform: 'MacIntel',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: clipboardUrl,
+        intentLink: `${HOST_BASE_URL}/some-campaign?link=${clipboardUrl}`,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(clipboardUrl);
+      expect(response.body.match_type).toBe('unique');
+    });
+
+    test('should return intentLink when search succeeds but intentLink differs', async () => {
+      const clipboardUrl = 'https://example.com/clipboard-link';
+
+      // Create preinstall record
+      const installId = 'test-install-intent-differ';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          devicePixelRatio: 2,
+          platform: 'MacIntel',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      const differentIntentUrl = 'https://example.com/different-intent';
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: clipboardUrl,
+        intentLink: `${HOST_BASE_URL}/campaign?link=${differentIntentUrl}`,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(differentIntentUrl);
+      expect(response.body.match_type).toBe('unique');
+      expect(response.body.match_message).toContain('intentLink');
     });
   });
 });

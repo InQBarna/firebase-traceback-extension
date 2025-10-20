@@ -16,7 +16,9 @@ export const private_retry_initialize = functions
   .region('europe-west1')
   .https.onRequest(async (req, res): Promise<void> => {
     try {
-      functions.logger.info('[RETRY_INITIALIZE] Starting manual initialization retry');
+      functions.logger.info(
+        '[RETRY_INITIALIZE] Starting manual initialization retry',
+      );
 
       // Call initialization with createRemoteHost=true and createSetupData=true
       // This will attempt to create hosting, rewrites, and sample data
@@ -45,7 +47,11 @@ export const private_retry_initialize = functions
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      functions.logger.error('[RETRY_INITIALIZE] Retry failed:', errorMessage, error);
+      functions.logger.error(
+        '[RETRY_INITIALIZE] Retry failed:',
+        errorMessage,
+        error,
+      );
 
       const result: RetryInitializeResult = {
         success: false,
