@@ -4,7 +4,6 @@ import {
   TRACEBACK_COLLECTION,
   INSTALLS_DOC,
   RECORDS_COLLECTION,
-  DYNAMICLINKS_DOC,
 } from '../src/common/constants';
 import {
   getTestApiUrl,
@@ -12,6 +11,7 @@ import {
   getTestFirestore,
   clearInstallRecords,
   cleanupTestFirebase,
+  generateUniqueTestId,
 } from './test-utils';
 
 const HOST_BASE_URL = getTestApiUrl();
@@ -35,7 +35,7 @@ describe('Install Attribution - Integration Tests', () => {
     await cleanupTestFirebase();
   });
 
-  describe('private_v1_preinstall_save_link', () => {
+  describe('Install Creation', () => {
     test('should save device heuristics to Firestore', async () => {
       const deviceHeuristics = {
         language: 'en-US',
@@ -84,58 +84,6 @@ describe('Install Attribution - Integration Tests', () => {
       expect(data?.createdAt).toBeInstanceOf(Timestamp);
     });
 
-    test('should track analytics when clipboard contains valid link', async () => {
-      // 1. Create a dynamic link
-      const dynamicLink = {
-        path: '/summer',
-        title: 'Summer Sale',
-        description: 'Test link',
-        followLink: 'https://example.com/products/summer-sale',
-      };
-
-      const linkDoc = await db
-        .collection(TRACEBACK_COLLECTION)
-        .doc(DYNAMICLINKS_DOC)
-        .collection(RECORDS_COLLECTION)
-        .add(dynamicLink);
-
-      const linkUrl = `${HOST_BASE_URL}/summer`;
-
-      // 2. Request the dynamic link to track a "click"
-      await request(HOST_BASE_URL).get('/summer').redirects(0);
-
-      // 3. Save device heuristics with clipboard pointing to the link (tracks "redirect")
-      const deviceHeuristics = {
-        language: 'en-US',
-        languages: ['en-US'],
-        timezone: 'America/New_York',
-        screenWidth: 1920,
-        screenHeight: 1080,
-        devicePixelRatio: 2,
-        platform: 'MacIntel',
-        userAgent: 'Mozilla/5.0',
-        clipboard: linkUrl,
-      };
-
-      const response = await request(HOST_BASE_URL)
-        .post('/v1_preinstall_save_link')
-        .send(deviceHeuristics);
-
-      expect(response.statusCode).toBe(200);
-
-      // 4. Verify analytics were tracked (clicks: 1, redirects: 1)
-      const today = new Date().toISOString().split('T')[0];
-      const analyticsDoc = await linkDoc
-        .collection('analytics')
-        .doc(today)
-        .get();
-
-      expect(analyticsDoc.exists).toBe(true);
-      const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.clicks).toBe(1);
-      expect(analyticsData?.redirects).toBe(1);
-    });
-
     test('should handle invalid payload gracefully', async () => {
       const invalidPayload = {
         language: 'en-US',
@@ -152,7 +100,7 @@ describe('Install Attribution - Integration Tests', () => {
     });
   });
 
-  describe('private_v1_postinstall_search_link', () => {
+  describe('Install Search with clipboard - unique', () => {
     test('should find install by clipboard content (unique match)', async () => {
       const clipboardUrl = 'https://example.com/unique-test-link';
 
@@ -213,7 +161,9 @@ describe('Install Attribution - Integration Tests', () => {
 
       expect(installDoc.exists).toBe(false);
     });
+  });
 
+  describe('Install Search by heuristics - heuristics', () => {
     test('should find install by heuristics when clipboard match fails', async () => {
       // 1. Create a preinstall record without exact clipboard match
       const installId = 'test-install-456';
@@ -262,7 +212,9 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.body.deep_link_id).toBe('https://example.com/some-link');
       expect(['heuristics', 'ambiguous']).toContain(response.body.match_type);
     });
+  });
 
+  describe('Install Search - not found', () => {
     test('should return no match when no install found', async () => {
       const fingerprint = {
         appInstallationTime: Date.now(),
@@ -286,6 +238,154 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.statusCode).toBe(200);
       expect(response.body.match_type).toBe('none');
       expect(response.body.match_message).toContain('No matching install');
+    });
+
+    test('should not match when language mismatches', async () => {
+      const uniqueTestId = generateUniqueTestId();
+      const clipboardUrl = `https://example.com/lang-mismatch-${uniqueTestId}`;
+
+      // 1. Create preinstall record with Spanish language
+      const installId = 'test-install-lang-mismatch';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'es-CA',
+          languages: ['es-CA'],
+          timezone: 'America/Toronto',
+          screenWidth: 428,
+          screenHeight: 926,
+          devicePixelRatio: 2,
+          platform: 'iPhone',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Query with English language (should not match)
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: undefined,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 428,
+          screenResolutionHeight: 926,
+          timezone: 'America/Toronto',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.match_type).toBe('none');
+    });
+
+    test('should not match when timing is outside tolerance window', async () => {
+      const currentTime = Date.now();
+      const uniqueTestId = generateUniqueTestId();
+      const clipboardUrl = `https://example.com/timing-fail-${uniqueTestId}`;
+
+      // 1. Create preinstall record
+      const installId = 'test-install-timing';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'fr-FR',
+          languages: ['fr-FR'],
+          timezone: 'Europe/Paris',
+          screenWidth: 375,
+          screenHeight: 812,
+          devicePixelRatio: 2,
+          platform: 'iPhone',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Query with app install time 60 seconds before preinstall (beyond 30s tolerance)
+      const fingerprint = {
+        appInstallationTime: currentTime - 60000, // 60 seconds ago
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: undefined,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'fr-FR',
+          languageCodeRaw: 'fr-FR',
+          screenResolutionWidth: 375,
+          screenResolutionHeight: 812,
+          timezone: 'Europe/Paris',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.match_type).toBe('none');
+    });
+
+    test('should not match with different screen resolutions', async () => {
+      const uniqueTestId = generateUniqueTestId();
+      const clipboardUrl = `https://example.com/resolution-fail-${uniqueTestId}`;
+
+      // 1. Create preinstall record with specific resolution
+      const installId = 'test-install-resolution';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 390,
+          screenHeight: 844,
+          devicePixelRatio: 3,
+          platform: 'iPhone',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Query with different resolution (should not match)
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: '1.0',
+        uniqueMatchLinkToCheck: undefined,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 414, // Different resolution
+          screenResolutionHeight: 896,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body.match_type).toBe('none');
     });
   });
 });

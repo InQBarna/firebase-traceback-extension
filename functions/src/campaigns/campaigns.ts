@@ -10,15 +10,16 @@ import {
  * GET /v1_get_campaign?link=<percent-encoded-url>&first_campaign_open=<true|false>
  *
  * Returns the followLink of a dynamic link campaign based on the path
+ * If no link parameter is provided, returns the default campaign (/default)
  * Tracks analytics based on first_campaign_open parameter
  *
- * @param req - Express request with query parameters 'link' and optional 'first_campaign_open'
+ * @param req - Express request with optional query parameter 'link' and optional 'first_campaign_open'
  * @param res - Express response
  *
  * Response:
  * - 200: { result: "https://example.com/follow-link" }
- * - 400: { error: "Missing or invalid link parameter" }
- * - 404: { error: "Campaign not found" }
+ * - 400: { error: "Invalid URL encoding" | "Invalid URL format" }
+ * - 404: { error: "Campaign not found" | "Campaign has no follow link" }
  * - 500: { error: "Internal server error" }
  */
 export const private_v1_get_campaign = async function (
@@ -29,38 +30,36 @@ export const private_v1_get_campaign = async function (
     // Get and decode the link parameter
     const encodedLink = req.query.link as string | undefined;
 
-    if (!encodedLink) {
-      return res.status(400).json({
-        error: 'Missing link parameter',
-      });
-    }
+    // If no link parameter provided, use default campaign path
+    let linkPath = '/default';
 
-    // Decode the URL
-    let decodedLink: string;
-    try {
-      decodedLink = decodeURIComponent(encodedLink);
-    } catch (_error) {
-      return res.status(400).json({
-        error: 'Invalid URL encoding',
-      });
-    }
+    if (encodedLink) {
+      // Decode the URL
+      let decodedLink: string;
+      try {
+        decodedLink = decodeURIComponent(encodedLink);
+      } catch (_error) {
+        return res.status(400).json({
+          error: 'Invalid URL encoding',
+        });
+      }
 
-    // Parse the URL to extract the path
-    let linkPath: string;
-    try {
-      const url = new URL(decodedLink);
-      linkPath = url.pathname;
-    } catch (_error) {
-      return res.status(400).json({
-        error: 'Invalid URL format',
-      });
-    }
+      // Parse the URL to extract the path
+      try {
+        const url = new URL(decodedLink);
+        linkPath = url.pathname;
+      } catch (_error) {
+        return res.status(400).json({
+          error: 'Invalid URL format',
+        });
+      }
 
-    // Return 404 if path is just '/'
-    if (linkPath === '/' || linkPath === '') {
-      return res.status(404).json({
-        error: 'Campaign not found',
-      });
+      // Return 404 if path is just '/'
+      if (linkPath === '/' || linkPath === '') {
+        return res.status(404).json({
+          error: 'Campaign not found',
+        });
+      }
     }
 
     // Find the dynamic link by path

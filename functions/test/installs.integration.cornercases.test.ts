@@ -64,7 +64,7 @@ const getTestFingerprintMissingKey = () => ({
   },
 });
 
-describe('TraceBack API - retro-compatibility', () => {
+describe('Install Search by heuristics - corner cases', () => {
   jest.setTimeout(30000);
 
   beforeEach(async () => {
@@ -116,7 +116,7 @@ describe('TraceBack API - retro-compatibility', () => {
 });
 
 // Edge Case Tests for Heuristic Search Improvements
-describe('TraceBack Heuristic Search Edge Cases', () => {
+describe('Install Search by heuristics - edge cases', () => {
   jest.setTimeout(30000);
 
   beforeEach(async () => {
@@ -422,7 +422,7 @@ describe('TraceBack Heuristic Search Edge Cases', () => {
   });
 });
 
-describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
+describe('Install Search by heuristics - real world scenarios', () => {
   jest.setTimeout(30000);
 
   beforeEach(async () => {

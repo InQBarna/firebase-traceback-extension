@@ -31,6 +31,7 @@ export const deviceFingerprintSchema = Joi.object({
   osVersion: Joi.string().required(),
   sdkVersion: Joi.string().required(),
   uniqueMatchLinkToCheck: Joi.string().uri().optional(),
+  intentLink: Joi.string().uri().optional(),
   device: Joi.object({
     deviceModelName: Joi.string().required(),
     languageCode: Joi.string().required(),
