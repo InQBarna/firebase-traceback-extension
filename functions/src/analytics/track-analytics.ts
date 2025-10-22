@@ -6,20 +6,20 @@ import {
   ANALYTICS_COLLECTION,
 } from '../common/constants';
 
-interface LinkAnalytics {
-  clicks: number;
-  redirects: number;
-  first_opens_intent: number;
-  first_opens_install: number;
-  reopens: number;
-}
-
 export enum AnalyticsEventType {
-  CLICK = 'clicks',
+  OPEN_LINK_PREVIEW = 'open_link_preview',
   REDIRECT = 'redirects',
   APP_FIRST_OPEN_INTENT = 'first_opens_intent',
   APP_FIRST_OPEN_INSTALL = 'first_opens_install',
   APP_REOPEN = 'reopens',
+}
+
+interface LinkAnalytics {
+  [AnalyticsEventType.OPEN_LINK_PREVIEW]: number;
+  [AnalyticsEventType.REDIRECT]: number;
+  [AnalyticsEventType.APP_FIRST_OPEN_INTENT]: number;
+  [AnalyticsEventType.APP_FIRST_OPEN_INSTALL]: number;
+  [AnalyticsEventType.APP_REOPEN]: number;
 }
 
 export async function trackLinkAnalytics(
@@ -48,7 +48,7 @@ export async function trackLinkAnalytics(
         });
       } else {
         const newAnalytics: LinkAnalytics = {
-          clicks: 0,
+          open_link_preview: 0,
           redirects: 0,
           first_opens_intent: 0,
           first_opens_install: 0,

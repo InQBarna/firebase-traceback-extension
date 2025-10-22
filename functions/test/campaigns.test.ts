@@ -401,7 +401,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(response.statusCode).toBe(302);
 
-      // 3. Verify analytics for that dynamic link has clicks: 1 for today's date
+      // 3. Verify analytics for that dynamic link has open_link_preview: 1 for today's date
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -410,7 +410,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.clicks).toBe(1);
+      expect(analyticsData?.open_link_preview).toBe(1);
     });
 
     test('should track as many analytics as openings of the dynamic link (2)', async () => {
@@ -430,7 +430,7 @@ describe('Campaign API - v1_get_campaign', () => {
       await request(HOST_BASE_URL).get('/feature').redirects(0);
       await request(HOST_BASE_URL).get('/feature').redirects(0);
 
-      // 3. Verify analytics shows clicks: 2
+      // 3. Verify analytics shows open_link_preview: 2
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -439,7 +439,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.clicks).toBe(2);
+      expect(analyticsData?.open_link_preview).toBe(2);
     });
 
     test('should track 1 click and 1 redirect when opening dynamic link and calling preinstall link creation', async () => {
@@ -475,7 +475,7 @@ describe('Campaign API - v1_get_campaign', () => {
           clipboard: linkUrl,
         });
 
-      // 4. Verify analytics shows clicks: 1, redirects: 1
+      // 4. Verify analytics shows open_link_preview: 1, redirects: 1
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -484,7 +484,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.clicks).toBe(1);
+      expect(analyticsData?.open_link_preview).toBe(1);
       expect(analyticsData?.redirects).toBe(1);
     });
 
@@ -540,7 +540,7 @@ describe('Campaign API - v1_get_campaign', () => {
           },
         });
 
-      // 5. Verify analytics shows clicks: 1, redirects: 1, first_opens_install: 1
+      // 5. Verify analytics shows open_link_preview: 1, redirects: 1, first_opens_install: 1
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -549,7 +549,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.clicks).toBe(1);
+      expect(analyticsData?.open_link_preview).toBe(1);
       expect(analyticsData?.redirects).toBe(1);
       expect(analyticsData?.first_opens_install).toBe(1);
     });

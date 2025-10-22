@@ -1,6 +1,6 @@
 ## Version 0.5.0
 
-- Daily analytics for dynamic/short links with new structure (clicks, redirects, first_opens_intent, first_opens_install, reopens)
+- Daily analytics for dynamic/short links with new structure (open_link_preview, redirects, first_opens_intent, first_opens_install, reopens)
 - Added API key security for debug endpoints (v1_doctor, v1_campaigns, v1_campaign_debug)
 - New campaign debug endpoints: v1_campaigns (JSON) and v1_campaign_debug (mobile-responsive HTML)
 - Consolidated doctor endpoint into dynamichostingcontent (removed standalone Cloud Function)

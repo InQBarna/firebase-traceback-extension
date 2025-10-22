@@ -44,15 +44,15 @@ const dummyLinks: DynamicLink[] = [
 ];
 
 function generateAnalyticsData(): {
-  clicks: number;
+  open_link_preview: number;
   redirects: number;
   first_opens_intent: number;
   first_opens_install: number;
   reopens: number;
 } {
-  // Generate semi-realistic data following the installation funnel: clicks -> redirects -> first_opens_install
-  const clicks = Math.floor(Math.random() * 100) + 50;
-  const redirects = Math.floor(clicks * (0.4 + Math.random() * 0.3)); // 40-70% redirect rate
+  // Generate semi-realistic data following the installation funnel: open_link_preview -> redirects -> first_opens_install
+  const open_link_preview = Math.floor(Math.random() * 100) + 50;
+  const redirects = Math.floor(open_link_preview * (0.4 + Math.random() * 0.3)); // 40-70% redirect rate
   const first_opens_install = Math.floor(
     redirects * (0.1 + Math.random() * 0.2),
   ); // 10-30% install rate
@@ -62,7 +62,7 @@ function generateAnalyticsData(): {
   const reopens = Math.floor(first_opens_install * (0.2 + Math.random() * 0.4)); // 20-60% reopen rate
 
   return {
-    clicks,
+    open_link_preview,
     redirects,
     first_opens_intent,
     first_opens_install,
