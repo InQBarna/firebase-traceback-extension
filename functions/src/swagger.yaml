@@ -1,0 +1,493 @@
+openapi: 3.0.3
+info:
+  title: Firebase Dynamic Links Extension API
+  description: |
+    API for the Firebase extension that replaces Firebase Dynamic Links.
+
+    This extension provides:
+    - Campaign tracking and deep link management
+    - Pre-install and post-install attribution
+    - iOS and Android app association files
+    - Landing page redirects to app stores
+  version: 0.4.1
+  contact:
+    name: Firebase Extension Support
+servers:
+  - url: https://familymealplan-pre-traceback.web.app
+    description: Production server
+  - url: http://localhost:5002/
+    description: Local emulator
+
+tags:
+  - name: Campaign Tracking
+    description: Endpoints for managing campaign links and attribution
+  - name: Install Attribution
+    description: Endpoints for tracking pre-install and post-install events
+  - name: Well-Known
+    description: iOS and Android app association files
+
+paths:
+  /v1_get_campaign:
+    get:
+      tags:
+        - Campaign Tracking
+      summary: Get campaign follow link
+      description: |
+        Returns the follow link of a dynamic link campaign based on the path.
+        If no link parameter is provided, returns the default campaign (/default).
+        Tracks analytics based on first_campaign_open parameter.
+      operationId: getCampaign
+      parameters:
+        - name: link
+          in: query
+          description: Percent-encoded campaign URL
+          required: false
+          schema:
+            type: string
+            format: uri
+            example: "https://your-project.web.app/promo-campaign"
+        - name: first_campaign_open
+          in: query
+          description: Indicates if this is the first time opening the campaign
+          required: false
+          schema:
+            type: string
+            enum: [true, false]
+      responses:
+        '200':
+          description: Campaign follow link returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    format: uri
+                    description: The follow link URL for the campaign
+                    example: "https://example.com/follow-link"
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidEncoding:
+                  value:
+                    error: "Invalid URL encoding"
+                invalidFormat:
+                  value:
+                    error: "Invalid URL format"
+        '404':
+          description: Campaign not found or has no follow link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                notFound:
+                  value:
+                    error: "Campaign not found"
+                noFollowLink:
+                  value:
+                    error: "Campaign has no follow link"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1_preinstall_save_link:
+    post:
+      tags:
+        - Install Attribution
+      summary: Save pre-install device heuristics
+      description: |
+        Saves device heuristics when a user opens the app link in a browser (pre-install).
+        This data is used later for attribution matching after app installation.
+        The endpoint returns an installId that can be used for debugging.
+      operationId: preinstallSaveLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceHeuristics'
+      responses:
+        '200':
+          description: Device heuristics saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  installId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for this pre-install record
+                    example: "550e8400-e29b-41d4-a716-446655440000"
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Invalid payload"
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+                        path:
+                          type: array
+                          items:
+                            type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "Internal Server Error"
+
+  /v1_postinstall_search_link:
+    post:
+      tags:
+        - Install Attribution
+      summary: Search for matching pre-install record
+      description: |
+        Searches for a matching pre-install record based on device fingerprint.
+        This endpoint is called after app installation to attribute the install to a campaign.
+
+        Matching strategies:
+        1. Unique clipboard match (highest priority)
+        2. Heuristics-based matching (screen resolution, timezone, language, IP, user agent)
+        3. Intent link fallback
+
+        The matched record is deleted after retrieval to prevent duplicate attribution.
+      operationId: postinstallSearchLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeviceFingerprint'
+      responses:
+        '200':
+          description: Match result (may be empty if no match found)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TraceBackMatchResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid payload"
+                  details:
+                    type: array
+                    items:
+                      type: object
+        '405':
+          description: Method not allowed
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Method Not Allowed"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /.well-known/apple-app-site-association:
+    get:
+      tags:
+        - Well-Known
+      summary: iOS app association file
+      description: |
+        Returns the Apple App Site Association file for iOS Universal Links.
+        This file enables iOS to open links in your app instead of the browser.
+      operationId: appleAppSiteAssociation
+      responses:
+        '200':
+          description: iOS association file
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applinks:
+                    type: object
+                    properties:
+                      apps:
+                        type: array
+                        items:
+                          type: string
+                      details:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            appID:
+                              type: string
+                            paths:
+                              type: array
+                              items:
+                                type: string
+
+  /.well-known/assetlinks.json:
+    get:
+      tags:
+        - Well-Known
+      summary: Android app association file
+      description: |
+        Returns the Android Asset Links file for Android App Links.
+        This file enables Android to open links in your app instead of the browser.
+      operationId: assetLinks
+      responses:
+        '200':
+          description: Android association file
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    relation:
+                      type: array
+                      items:
+                        type: string
+                    target:
+                      type: object
+                      properties:
+                        namespace:
+                          type: string
+                        package_name:
+                          type: string
+                        sha256_cert_fingerprints:
+                          type: array
+                          items:
+                            type: string
+
+components:
+  schemas:
+    DeviceHeuristics:
+      type: object
+      required:
+        - screenWidth
+        - screenHeight
+      properties:
+        language:
+          type: string
+          nullable: true
+          description: Browser language
+          example: "en-US"
+        languages:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: Array of browser languages
+          example: ["en-US", "en"]
+        timezone:
+          type: string
+          nullable: true
+          description: Browser timezone
+          example: "America/New_York"
+        screenWidth:
+          type: number
+          description: Screen width in pixels
+          example: 390
+        screenHeight:
+          type: number
+          description: Screen height in pixels
+          example: 844
+        devicePixelRatio:
+          type: number
+          nullable: true
+          description: Device pixel ratio
+          example: 3
+        platform:
+          type: string
+          nullable: true
+          description: Browser platform
+          example: "iPhone"
+        userAgent:
+          type: string
+          nullable: true
+          description: Browser user agent string
+          example: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+        connectionType:
+          type: string
+          nullable: true
+          description: Network connection type
+          example: "4g"
+        hardwareConcurrency:
+          type: number
+          nullable: true
+          description: Number of CPU cores
+          example: 6
+        memory:
+          type: number
+          nullable: true
+          description: Device memory in GB
+          example: 8
+        colorDepth:
+          type: number
+          nullable: true
+          description: Screen color depth
+          example: 24
+        clipboard:
+          type: string
+          nullable: true
+          description: Clipboard content (link URL)
+          example: "https://your-project.web.app/promo-campaign"
+
+    DeviceFingerprint:
+      type: object
+      required:
+        - appInstallationTime
+        - bundleId
+        - osVersion
+        - sdkVersion
+        - device
+      properties:
+        appInstallationTime:
+          type: number
+          description: App installation timestamp (seconds or milliseconds)
+          example: 1704067200
+        bundleId:
+          type: string
+          description: App bundle identifier
+          example: "com.example.app"
+        osVersion:
+          type: string
+          description: Operating system version
+          example: "17.0"
+        sdkVersion:
+          type: string
+          description: SDK version
+          example: "1.0.0"
+        uniqueMatchLinkToCheck:
+          type: string
+          format: uri
+          description: Clipboard content to match (optional)
+          example: "https://your-project.web.app/promo-campaign"
+        intentLink:
+          type: string
+          format: uri
+          description: Intent link from deep link (optional)
+          example: "https://your-project.web.app/campaign/abc123"
+        device:
+          type: object
+          required:
+            - deviceModelName
+            - languageCode
+            - languageCodeRaw
+            - screenResolutionWidth
+            - screenResolutionHeight
+            - timezone
+          properties:
+            deviceModelName:
+              type: string
+              description: Device model name
+              example: "iPhone 15 Pro"
+            languageCode:
+              type: string
+              description: Device language code
+              example: "en-US"
+            languageCodeFromWebView:
+              type: string
+              description: Language code from WebView (optional)
+              example: "en-US"
+            languageCodeRaw:
+              type: string
+              description: Raw language code
+              example: "en_US"
+            appVersionFromWebView:
+              type: string
+              description: App version from WebView (optional)
+              example: "1.0.0"
+            screenResolutionWidth:
+              type: number
+              description: Screen width in pixels
+              example: 390
+            screenResolutionHeight:
+              type: number
+              description: Screen height in pixels
+              example: 844
+            timezone:
+              type: string
+              description: Device timezone
+              example: "America/New_York"
+
+    TraceBackMatchResponse:
+      type: object
+      properties:
+        deep_link_id:
+          type: string
+          format: uri
+          description: The matched deep link URL (may be undefined if no match)
+          example: "https://your-project.web.app/promo-campaign"
+        match_type:
+          type: string
+          enum: [unique, heuristics, ambiguous, none]
+          description: |
+            Type of match found:
+            - unique: Link uniquely matched via clipboard
+            - heuristics: Single match via device heuristics
+            - ambiguous: Multiple heuristics matches (best one returned)
+            - none: No match found
+          example: "unique"
+        match_message:
+          type: string
+          description: Human-readable description of the match result
+          example: "Link is uniquely matched for this device."
+        request_ip_version:
+          type: string
+          description: IP version of the request
+          example: "IP_V4"
+        utm_medium:
+          type: string
+          nullable: true
+          description: UTM medium parameter (reserved for future use)
+        utm_source:
+          type: string
+          nullable: true
+          description: UTM source parameter (reserved for future use)
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Internal server error"

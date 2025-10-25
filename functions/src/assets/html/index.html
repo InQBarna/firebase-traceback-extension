@@ -212,9 +212,19 @@
 
       const currentURL = new URL(window.location.href);
       const originalLinkParam = currentURL.searchParams.get("link");
-      if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
-        window.location.href = '{{followLink}}';
-      } else if (isIOS) {
+
+      // Create filtered URL with only 'link' param for referrer
+      const filteredURL = new URL(currentURL.origin + currentURL.pathname);
+      if (originalLinkParam) {
+        filteredURL.searchParams.set("link", originalLinkParam);
+      }
+
+      //  This followLink behaviour was meant when no app wants to e opened, kept
+      //   so in the future we want this behaviour
+      // if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
+      //   window.location.href = '{{followLink}}';
+      // } else 
+      if (isIOS) {
         window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
       } else if (isAndroid) {
         if ('{{androidScheme}}' != '') {
@@ -223,7 +233,21 @@
           );
           window.location.href = `intent:#Intent;scheme={{androidScheme}};package={{androidBundleID}};S.browser_fallback_url=${fallbackUrl};end`;
         } else {
-          const playStoreLocation = 'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' + encodeURIComponent(originalLinkParam);
+          // Build UTM parameters string for referrer
+          const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+          const utmParts = [];
+          utmParams.forEach(param => {
+            const value = currentURL.searchParams.get(param);
+            if (value) {
+              utmParts.push(`${param}%3D${encodeURIComponent(value)}`);
+            }
+          });
+          const utmString = utmParts.length > 0 ? '%25' + utmParts.join('%25') : '';
+
+          const playStoreLocation =
+            'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' +
+            encodeURIComponent(filteredURL) + 
+            utmString;
           window.location.href = playStoreLocation;
         }
       } else {

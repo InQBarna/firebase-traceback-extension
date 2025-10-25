@@ -9,8 +9,8 @@ import {
 } from '../common/constants';
 
 /**
- * Middleware to validate API key from request headers
- * API key must be provided in the x-traceback-api-key header
+ * Middleware to validate API key from request headers or query parameters
+ * API key can be provided in the x-traceback-api-key header or as a query parameter
  * and must exist in the _traceback_/apikeys/records collection
  */
 export async function validateApiKey(
@@ -18,12 +18,12 @@ export async function validateApiKey(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const apiKey = req.get(API_KEY_HEADER);
+  const apiKey = req.get(API_KEY_HEADER) || (req.query.apiKey as string);
 
   if (!apiKey) {
     res.status(401).json({
       error: 'API key required',
-      message: `Please provide an API key in the ${API_KEY_HEADER} header, configure api keys on firestore _traceback_/"API key required"`,
+      message: `Please provide an API key in the ${API_KEY_HEADER} header or as 'apiKey' query parameter, configure api keys on firestore _traceback_/"API key required"`,
     });
     return;
   }

@@ -33,6 +33,19 @@
       }
     },
     {
+      "label": "Create API Key",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "init:apikey"],
+      "options": {
+        "cwd": "${workspaceFolder}/functions"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "Seed Dummy Links",
       "type": "shell",
       "command": "npm",
@@ -81,6 +94,7 @@
       "dependsOrder": "sequence",
       "dependsOn": [
         "Start Emulators",
+        "Create API Key",
         "Seed Dummy Links"
       ],
       "problemMatcher": []
