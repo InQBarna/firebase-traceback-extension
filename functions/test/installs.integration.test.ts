@@ -130,7 +130,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: clipboardUrl,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -148,7 +148,10 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 3. Verify response
       expect(response.statusCode).toBe(200);
-      expect(response.body.deep_link_id).toBe(clipboardUrl);
+      // SDK version 1.0 uses legacy format
+      expect(response.body.deep_link_id).toBe(
+        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(clipboardUrl)}`,
+      );
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
 
@@ -161,6 +164,52 @@ describe('Install Attribution - Integration Tests', () => {
         .get();
 
       expect(installDoc.exists).toBe(false);
+    });
+
+    test('should return plain link for SDK version 0.3.0 (non-legacy format)', async () => {
+      const clipboardUrl = `http://127.0.0.1:5002/test-link-${generateUniqueTestId()}`;
+
+      // 1. Save install with clipboard
+      const installId = `test-install-${generateUniqueTestId()}`;
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Search with matching fingerprint using SDK 0.3.0
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.test.app',
+        osVersion: '17.0',
+        sdkVersion: '0.3.0', // Non-legacy version
+        uniqueMatchLinkToCheck: clipboardUrl,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      // 3. Verify response returns plain link (not wrapped in legacy format)
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(clipboardUrl);
+      expect(response.body.match_type).toBe('unique');
     });
 
     test('should resolve campaign link in clipboard to followLink', async () => {
@@ -201,7 +250,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: clipboardCampaignUrl,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -219,7 +268,10 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 4. Verify response returns the followLink (not the campaign URL)
       expect(response.statusCode).toBe(200);
-      expect(response.body.deep_link_id).toBe(followLink);
+      // SDK version 1.0 uses legacy format
+      expect(response.body.deep_link_id).toBe(
+        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(followLink)}`,
+      );
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
     });
@@ -253,7 +305,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: 'https://example.com/different-link',
         device: {
           deviceModelName: 'iPhone14,5',
@@ -271,7 +323,10 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 3. Verify response - should find via heuristics
       expect(response.statusCode).toBe(200);
-      expect(response.body.deep_link_id).toBe('https://example.com/some-link');
+      // SDK version 1.0 uses legacy format
+      expect(response.body.deep_link_id).toBe(
+        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent('https://example.com/some-link')}`,
+      );
       expect(['heuristics', 'ambiguous']).toContain(response.body.match_type);
     });
   });
@@ -282,7 +337,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         device: {
           deviceModelName: 'iPhone14,5',
           languageCode: 'en-US',
@@ -331,7 +386,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -381,7 +436,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: currentTime - 60000, // 60 seconds ago
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -430,7 +485,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '1.0.0',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -459,7 +514,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '0.3.0',
         intentLink: intentLink,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -501,7 +556,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '0.3.0',
         intentLink: intentLink,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -551,7 +606,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '0.3.0',
         uniqueMatchLinkToCheck: clipboardUrl,
         intentLink: `${HOST_BASE_URL}/some-campaign?link=${clipboardUrl}`,
         device: {
@@ -601,7 +656,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0',
+        sdkVersion: '0.3.0',
         uniqueMatchLinkToCheck: clipboardUrl,
         intentLink: `${HOST_BASE_URL}/campaign?link=${differentIntentUrl}`,
         device: {

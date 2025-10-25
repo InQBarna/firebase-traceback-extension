@@ -496,6 +496,72 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
+  });
+
+  test('should return plain link for SDK version 0.5.0 (non-legacy format)', async () => {
+    const testId = generateUniqueTestId();
+
+    // Pre-install: Browser saves device heuristics
+    const browserHeuristics: DeviceHeuristics = {
+      language: 'es-ES',
+      languages: ['es-ES'],
+      timezone: 'Europe/Madrid',
+      screenWidth: 402,
+      screenHeight: 874,
+      devicePixelRatio: 3,
+      platform: 'iPhone',
+      userAgent:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+      hardwareConcurrency: 8,
+      colorDepth: 24,
+      clipboard: `http://127.0.0.1:5002/iphone17-test-${testId}`,
+    };
+
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set('User-Agent', browserHeuristics.userAgent)
+      .send(browserHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+
+    // Post-install: App searches for matching install with SDK 0.5.0
+    const appFingerprint: DeviceFingerprint = {
+      appInstallationTime: Date.now(),
+      bundleId: 'com.inqbarna.familymealplan',
+      osVersion: '18.0',
+      sdkVersion: '0.5.0', // Non-legacy version
+      uniqueMatchLinkToCheck: undefined,
+      device: {
+        deviceModelName: 'iPhone17,1',
+        languageCode: 'es',
+        languageCodeFromWebView: 'es-ES',
+        languageCodeRaw: 'es',
+        appVersionFromWebView:
+          '5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
+        screenResolutionWidth: 402,
+        screenResolutionHeight: 874,
+        timezone: 'Europe/Madrid',
+      },
+    };
+
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .set('X-Forwarded-For', '5.154.88.81')
+      .set(
+        'User-Agent',
+        'familymealplan/202510020716 CFNetwork/1568.100.1 Darwin/24.6.0',
+      )
+      .send(appFingerprint);
+
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('heuristics');
+    // SDK version 0.5.0 should return plain link (not wrapped)
     expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
   });
 
@@ -563,7 +629,10 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
     console.log('Match response:', JSON.stringify(matchResponse.body, null, 2));
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
   });
 
   test('should handle appInstallationTime in seconds (iOS format)', async () => {
@@ -629,6 +698,9 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
   });
 });

@@ -42,7 +42,10 @@ export const link_preview = async function (
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
       // Track the open before redirecting
-      await trackLinkAnalytics(linkResult.id, AnalyticsEventType.OPEN_LINK_PREVIEW);
+      await trackLinkAnalytics(
+        linkResult.id,
+        AnalyticsEventType.OPEN_LINK_PREVIEW,
+      );
 
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);

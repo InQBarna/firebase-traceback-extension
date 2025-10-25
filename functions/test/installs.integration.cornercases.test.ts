@@ -113,6 +113,42 @@ describe('Install Search by heuristics - corner cases', () => {
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
   });
+
+  test('should return plain link for SDK version 0.4.0 (non-legacy format)', async () => {
+    const uniqueHeuristics = {
+      ...getTestHeuristics(),
+      screenWidth: 414,
+      screenHeight: 896,
+      timezone: 'Asia/Tokyo',
+    };
+
+    const storeResponse = await request(HOST_BASE_URL)
+      .post('/v1_preinstall_save_link')
+      .send(uniqueHeuristics);
+
+    expect(storeResponse.statusCode).toBe(200);
+    expect(storeResponse.body.success).toBe(true);
+
+    const uniqueFingerprint = {
+      ...getTestFingerprintMissingKey(),
+      sdkVersion: '0.4.0', // Non-legacy version
+      device: {
+        ...getTestFingerprintMissingKey().device,
+        screenResolutionWidth: 414,
+        screenResolutionHeight: 896,
+        timezone: 'Asia/Tokyo',
+      },
+    };
+
+    const matchResponse = await request(HOST_BASE_URL)
+      .post('/v1_postinstall_search_link')
+      .send(uniqueFingerprint);
+
+    expect(matchResponse.statusCode).toBe(200);
+    expect(matchResponse.body.match_type).toBe('heuristics');
+    // SDK version 0.4.0 should return plain link (not wrapped)
+    expect(matchResponse.body.deep_link_id).toBe(uniqueHeuristics.clipboard);
+  });
 });
 
 // Edge Case Tests for Heuristic Search Improvements
@@ -496,7 +532,10 @@ describe('Install Search by heuristics - real world scenarios', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
   });
 
   test('should match iPhone17,1 iOS18 with realistic production timing (2 minutes delay)', async () => {
@@ -563,7 +602,10 @@ describe('Install Search by heuristics - real world scenarios', () => {
     console.log('Match response:', JSON.stringify(matchResponse.body, null, 2));
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
   });
 
   test('should handle appInstallationTime in seconds (iOS format)', async () => {
@@ -629,6 +671,9 @@ describe('Install Search by heuristics - real world scenarios', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
+    // SDK version 1.2.2 uses legacy format
+    expect(matchResponse.body.deep_link_id).toBe(
+      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
+    );
   });
 });

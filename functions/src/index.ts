@@ -104,6 +104,11 @@ app.use('/.well-known/assetlinks.json', async (req, res) => {
 // ## Host assets dynamic to bundle assets
 app.use('/images', express.static(path.join(__dirname, './assets/images')));
 
+// ## Serve Swagger API documentation
+app.get('/api-doc.yaml', (_req, res) => {
+  res.sendFile(path.join(__dirname, './assets/swagger.yaml'));
+});
+
 // ## Log device installs / heuristics when opening the app in browser (pre-install)
 app.post('/v1_preinstall_save_link', private_v1_preinstall_save_link);
 

@@ -26,6 +26,8 @@ import {
   logPostInstallDebugInfo,
 } from './install-analytics';
 import { resolveTracebackLink } from '../common/link-lookup';
+import { getSiteName } from '../common/site-utils';
+import { config } from '../config';
 
 export const deviceFingerprintSchema = Joi.object({
   appInstallationTime: Joi.number().required(),
@@ -83,6 +85,44 @@ function getMatchMessage(matchType: MatchType): string {
 }
 
 /**
+ * Check if SDK version requires legacy deep_link_id format
+ * Legacy format needed for versions < 0.3.0 or >= 1.0.0
+ */
+function requiresLegacyFormat(sdkVersion: string): boolean {
+  const versionMatch = sdkVersion.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (!versionMatch) return true;
+
+  const major = parseInt(versionMatch[1], 10);
+  const minor = parseInt(versionMatch[2], 10);
+
+  // Version >= 1.0.0
+  if (major >= 1) return true;
+
+  // Version < 0.3.0
+  if (major === 0 && minor < 3) return true;
+
+  return false;
+}
+
+/**
+ * Wrap deep_link_id in legacy format if needed
+ * Legacy format: https://{hosting-domain}.web.app/?link={deep_link_id}
+ */
+function formatDeepLinkId(
+  deepLinkId: string | undefined,
+  sdkVersion: string,
+): string | undefined {
+  if (!deepLinkId) return undefined;
+
+  if (requiresLegacyFormat(sdkVersion)) {
+    const hostingUrl = getSiteName(config);
+    return `${hostingUrl}?link=${encodeURIComponent(deepLinkId)}`;
+  }
+
+  return deepLinkId;
+}
+
+/**
  * Save analytics for matched install
  * @param result - The post-install search result
  */
@@ -132,7 +172,10 @@ async function buildMatchResponse(
         return {
           matchedLink: matchedLink,
           partialMatchResponse: {
-            deep_link_id: resolvedIntentLink,
+            deep_link_id: formatDeepLinkId(
+              resolvedIntentLink,
+              fingerprint.sdkVersion,
+            ),
             match_type: result.matchType,
             match_message: `Match found but intentLink differs. Returning intentLink.`,
           },
@@ -144,7 +187,7 @@ async function buildMatchResponse(
     return {
       matchedLink: matchedLink,
       partialMatchResponse: {
-        deep_link_id: matchedLink,
+        deep_link_id: formatDeepLinkId(matchedLink, fingerprint.sdkVersion),
         match_type: result.matchType,
         match_message: getMatchMessage(result.matchType),
       },
@@ -162,7 +205,10 @@ async function buildMatchResponse(
       return {
         matchedLink: undefined,
         partialMatchResponse: {
-          deep_link_id: resolvedIntentLink,
+          deep_link_id: formatDeepLinkId(
+            resolvedIntentLink,
+            fingerprint.sdkVersion,
+          ),
           match_type: MatchType.NO_MATCH,
           match_message: 'No matching install found. Returning intentLink.',
         },
@@ -175,11 +221,12 @@ async function buildMatchResponse(
     const resolvedClipboardLink = await resolveTracebackLink(
       fingerprint.uniqueMatchLinkToCheck,
     );
+    const deepLinkId =
+      resolvedClipboardLink ?? fingerprint.uniqueMatchLinkToCheck;
     return {
       matchedLink: undefined,
       partialMatchResponse: {
-        deep_link_id:
-          resolvedClipboardLink ?? fingerprint.uniqueMatchLinkToCheck,
+        deep_link_id: formatDeepLinkId(deepLinkId, fingerprint.sdkVersion),
         match_type: MatchType.NO_MATCH,
         match_message: 'No matching install found. Returning intentLink.',
       },
@@ -190,7 +237,10 @@ async function buildMatchResponse(
   return {
     matchedLink: undefined,
     partialMatchResponse: {
-      deep_link_id: fingerprint.uniqueMatchLinkToCheck ?? undefined,
+      deep_link_id: formatDeepLinkId(
+        fingerprint.uniqueMatchLinkToCheck,
+        fingerprint.sdkVersion,
+      ),
       match_type: MatchType.NO_MATCH,
       match_message: 'No matching install found.',
     },
