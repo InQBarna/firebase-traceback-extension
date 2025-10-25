@@ -7,13 +7,23 @@ import {
 } from './constants';
 
 /**
- * Result of finding a dynamic link by path
+ * Result of finding a dynamic link by path (internal use only)
  */
-export interface DynamicLinkResult {
+interface DynamicLinkResult {
   /** The Firestore document ID */
   id: string;
   /** The dynamic link data */
   data: DynamicLink;
+}
+
+/**
+ * Result of resolving a traceback link
+ */
+export interface ResolvedTracebackLink {
+  /** The final resolved link */
+  link: string | undefined;
+  /** The campaign data if link came from a campaign, undefined otherwise */
+  campaign?: DynamicLink;
 }
 
 /**
@@ -61,21 +71,21 @@ export function parseDirectLinkFromUrl(urlString: string): string | undefined {
 
 /**
  * Resolve traceback link following the fallback logic:
- * 1. Try to find campaign by path (returns campaign's followLink)
+ * 1. Try to find campaign by path (returns campaign's followLink and campaign data)
  * 2. If not found, try to parse direct link from URL query parameter
- * 3. Return the resolved link or undefined
+ * 3. Return the resolved link and optional campaign data
  *
  * Examples:
- * - "https://domain.web.app/campaign" -> finds campaign, returns followLink
- * - "https://domain.web.app/path?link=https://direct.link" -> returns "https://direct.link"
- * - "https://domain.web.app/unknown?link=https://fallback.com" -> returns "https://fallback.com"
+ * - "https://domain.web.app/campaign" -> finds campaign, returns {link: followLink, campaign: {...}}
+ * - "https://domain.web.app/path?link=https://direct.link" -> returns {link: "https://direct.link"}
+ * - "https://domain.web.app/unknown?link=https://fallback.com" -> returns {link: "https://fallback.com"}
  *
  * @param link - The traceback link to resolve
- * @returns The resolved link or undefined
+ * @returns The resolved link and optional campaign data
  */
 export async function resolveTracebackLink(
   link: string,
-): Promise<string | undefined> {
+): Promise<ResolvedTracebackLink> {
   try {
     const url = new URL(link);
     const linkPath = url.pathname;
@@ -84,15 +94,22 @@ export async function resolveTracebackLink(
     const linkResult = await findDynamicLinkByPath(linkPath);
 
     if (linkResult?.data.followLink) {
-      // Campaign found, return its followLink
-      return linkResult.data.followLink;
+      // Campaign found, return its followLink and campaign data
+      return {
+        link: linkResult.data.followLink,
+        campaign: linkResult.data,
+      };
     }
 
     // Campaign not found, try to parse direct link from URL
     const directLink = parseDirectLinkFromUrl(link);
-    return directLink;
+    return {
+      link: directLink,
+    };
   } catch {
     // Invalid URL
-    return undefined;
+    return {
+      link: undefined,
+    };
   }
 }

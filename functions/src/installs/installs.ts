@@ -157,8 +157,8 @@ async function buildMatchResponse(
   if (result.foundEntry !== undefined) {
     // Search successful - resolve clipboard in case it's a campaign link
     const matchedClipboard = result.foundEntry.clipboard;
-    const matchedLink =
-      (await resolveTracebackLink(matchedClipboard)) ?? matchedClipboard;
+    const matchedCampaign = await resolveTracebackLink(matchedClipboard);
+    const matchedLink = matchedCampaign.link ?? matchedClipboard;
 
     // Check if intentLink is provided
     if (fingerprint.intentLink) {
@@ -167,17 +167,18 @@ async function buildMatchResponse(
       );
 
       // Compare resolved intent link with matched link
-      if (resolvedIntentLink && resolvedIntentLink !== matchedLink) {
+      if (resolvedIntentLink && resolvedIntentLink.link !== matchedLink) {
         // Intent link differs from matched link - return intent link
         return {
           matchedLink: matchedLink,
           partialMatchResponse: {
             deep_link_id: formatDeepLinkId(
-              resolvedIntentLink,
+              resolvedIntentLink.link,
               fingerprint.sdkVersion,
             ),
             match_type: result.matchType,
             match_message: `Match found but intentLink differs. Returning intentLink.`,
+            match_campaign: resolvedIntentLink.campaign?.path,
           },
         };
       }
@@ -190,6 +191,7 @@ async function buildMatchResponse(
         deep_link_id: formatDeepLinkId(matchedLink, fingerprint.sdkVersion),
         match_type: result.matchType,
         match_message: getMatchMessage(result.matchType),
+        match_campaign: matchedCampaign.campaign?.path,
       },
     };
   }
@@ -200,17 +202,18 @@ async function buildMatchResponse(
       fingerprint.intentLink,
     );
 
-    if (resolvedIntentLink) {
+    if (resolvedIntentLink.link) {
       // Return resolved intent link
       return {
         matchedLink: undefined,
         partialMatchResponse: {
           deep_link_id: formatDeepLinkId(
-            resolvedIntentLink,
+            resolvedIntentLink.link,
             fingerprint.sdkVersion,
           ),
           match_type: MatchType.NO_MATCH,
           match_message: 'No matching install found. Returning intentLink.',
+          match_campaign: resolvedIntentLink.campaign?.path,
         },
       };
     }
@@ -222,13 +225,14 @@ async function buildMatchResponse(
       fingerprint.uniqueMatchLinkToCheck,
     );
     const deepLinkId =
-      resolvedClipboardLink ?? fingerprint.uniqueMatchLinkToCheck;
+      resolvedClipboardLink.link ?? fingerprint.uniqueMatchLinkToCheck;
     return {
       matchedLink: undefined,
       partialMatchResponse: {
         deep_link_id: formatDeepLinkId(deepLinkId, fingerprint.sdkVersion),
         match_type: MatchType.NO_MATCH,
         match_message: 'No matching install found. Returning intentLink.',
+        match_campaign: resolvedClipboardLink.campaign?.path,
       },
     };
   }

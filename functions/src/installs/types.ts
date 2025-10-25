@@ -30,6 +30,7 @@ export interface PartialTraceBackMatchResponse {
   deep_link_id?: string;
   match_message: string;
   match_type: 'unique' | 'heuristics' | 'ambiguous' | 'none';
+  match_campaign?: string;
 }
 
 export interface TraceBackMatchResponse extends PartialTraceBackMatchResponse {

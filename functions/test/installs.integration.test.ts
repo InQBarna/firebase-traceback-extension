@@ -154,6 +154,7 @@ describe('Install Attribution - Integration Tests', () => {
       );
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
+      expect(response.body.match_campaign).toBeUndefined();
 
       // 4. Verify install record was removed
       const installDoc = await db
@@ -274,6 +275,7 @@ describe('Install Attribution - Integration Tests', () => {
       );
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
+      expect(response.body.match_campaign).toBe(campaignPath);
     });
   });
 
@@ -577,6 +579,7 @@ describe('Install Attribution - Integration Tests', () => {
         'https://example.com/summer-campaign',
       );
       expect(response.body.match_type).toBe('none');
+      expect(response.body.match_campaign).toBe('/summer-intent');
     });
 
     test('should return matched link when search succeeds and intentLink matches', async () => {
