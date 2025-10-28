@@ -528,7 +528,7 @@ describe('Campaign API - v1_get_campaign', () => {
           appInstallationTime: Date.now(),
           bundleId: 'com.example.app',
           osVersion: '14.0',
-          sdkVersion: '1.0.0',
+          sdkVersion: 'ios/0.3.5',
           uniqueMatchLinkToCheck: linkUrl,
           device: {
             deviceModelName: 'iPhone14,5',

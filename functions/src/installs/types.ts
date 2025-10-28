@@ -29,7 +29,7 @@ export interface Match {
 export interface PartialTraceBackMatchResponse {
   deep_link_id?: string;
   match_message: string;
-  match_type: 'unique' | 'heuristics' | 'ambiguous' | 'none';
+  match_type: 'unique' | 'heuristics' | 'ambiguous' | 'none' | 'intent';
   match_campaign?: string;
 }
 

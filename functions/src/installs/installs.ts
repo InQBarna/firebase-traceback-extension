@@ -59,6 +59,7 @@ enum MatchType {
   SINGLE_HEURISTICS = 'heuristics',
   MULTIPLE_HEURISTICS = 'ambiguous',
   NO_MATCH = 'none',
+  INTENT = 'intent',
 }
 
 interface PostInstallResult {
@@ -79,6 +80,8 @@ function getMatchMessage(matchType: MatchType): string {
       return 'Fuzzy link with this id with a single heuristics match';
     case MatchType.MULTIPLE_HEURISTICS:
       return 'Fuzzy link with this id with many scoring matches';
+    case MatchType.INTENT:
+      return 'IntentLink overwrites deep_link_id.';
     default:
       return 'Unknown match type';
   }
@@ -86,22 +89,39 @@ function getMatchMessage(matchType: MatchType): string {
 
 /**
  * Check if SDK version requires legacy deep_link_id format
- * Legacy format needed for versions < 0.3.0 or >= 1.0.0
+ * Legacy format needed for versions < 0.3.0
+ * SDK version format: prefix/X.Y.Z (e.g., "ios/0.3.0", "android/1.2.3") or X.Y.Z (legacy format)
  */
 function requiresLegacyFormat(sdkVersion: string): boolean {
-  const versionMatch = sdkVersion.match(/^(\d+)\.(\d+)\.(\d+)/);
-  if (!versionMatch) return true;
+  // Try new format first: prefix/X.Y.Z
+  let versionMatch = sdkVersion.match(/^[a-zA-Z]+\/(\d+)\.(\d+)\.(\d+)/);
 
-  const major = parseInt(versionMatch[1], 10);
-  const minor = parseInt(versionMatch[2], 10);
+  if (versionMatch) {
+    const major = parseInt(versionMatch[1], 10);
+    const minor = parseInt(versionMatch[2], 10);
 
-  // Version >= 1.0.0
-  if (major >= 1) return true;
+    // Version < 0.3.0 requires legacy format
+    if (major === 0 && minor < 3) return true;
 
-  // Version < 0.3.0
-  if (major === 0 && minor < 3) return true;
+    // Version >= 0.3.0 does not require legacy format
+    return false;
+  }
 
-  return false;
+  // Try old format: X.Y.Z (without prefix) - treat as legacy
+  versionMatch = sdkVersion.match(/^(\d+)\.(\d+)\.(\d+)/);
+  if (versionMatch) {
+    const major = parseInt(versionMatch[1], 10);
+    const minor = parseInt(versionMatch[2], 10);
+
+    // Old format: Version < 0.3.0 requires legacy format
+    if (major === 0 && minor < 3) return true;
+
+    // Old format: Version >= 0.3.0 still uses legacy for backward compatibility
+    return true;
+  }
+
+  // If format doesn't match, default to legacy format for safety
+  return true;
 }
 
 /**
@@ -176,9 +196,12 @@ async function buildMatchResponse(
               resolvedIntentLink.link,
               fingerprint.sdkVersion,
             ),
-            match_type: result.matchType,
+            match_type: MatchType.INTENT,
             match_message: `Match found but intentLink differs. Returning intentLink.`,
-            match_campaign: resolvedIntentLink.campaign?.path,
+            match_campaign: resolvedIntentLink.campaign?.path?.replace(
+              /^\/+/,
+              '',
+            ),
           },
         };
       }
@@ -191,7 +214,7 @@ async function buildMatchResponse(
         deep_link_id: formatDeepLinkId(matchedLink, fingerprint.sdkVersion),
         match_type: result.matchType,
         match_message: getMatchMessage(result.matchType),
-        match_campaign: matchedCampaign.campaign?.path,
+        match_campaign: matchedCampaign.campaign?.path?.replace(/^\/+/, ''),
       },
     };
   }
@@ -211,9 +234,12 @@ async function buildMatchResponse(
             resolvedIntentLink.link,
             fingerprint.sdkVersion,
           ),
-          match_type: MatchType.NO_MATCH,
+          match_type: MatchType.INTENT,
           match_message: 'No matching install found. Returning intentLink.',
-          match_campaign: resolvedIntentLink.campaign?.path,
+          match_campaign: resolvedIntentLink.campaign?.path?.replace(
+            /^\/+/,
+            '',
+          ),
         },
       };
     }
@@ -232,7 +258,10 @@ async function buildMatchResponse(
         deep_link_id: formatDeepLinkId(deepLinkId, fingerprint.sdkVersion),
         match_type: MatchType.NO_MATCH,
         match_message: 'No matching install found. Returning intentLink.',
-        match_campaign: resolvedClipboardLink.campaign?.path,
+        match_campaign: resolvedClipboardLink.campaign?.path?.replace(
+          /^\/+/,
+          '',
+        ),
       },
     };
   }

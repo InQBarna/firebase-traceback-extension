@@ -35,7 +35,7 @@ const getTestFingerprint = () => ({
   appInstallationTime: Date.now(),
   bundleId: 'com.test.app',
   osVersion: '17.4',
-  sdkVersion: '1.0.0',
+  sdkVersion: 'ios/0.3.0',
   uniqueMatchLinkToCheck: `http://127.0.0.1:5002/fingerprint-${generateUniqueTestId()}?_lang=en-EN&_langs=en-EN&_tz=Europe%2FMadrid&_res=2560x1440&_dpr=1&_plt=MacIntel`,
   device: {
     deviceModelName: 'iPhone15,3',
@@ -52,7 +52,7 @@ const getTestFingerprintMissingKey = () => ({
   appInstallationTime: Date.now(),
   bundleId: 'com.test.app',
   osVersion: '17.4',
-  sdkVersion: '1.0.0',
+  sdkVersion: 'ios/0.3.1',
   device: {
     deviceModelName: 'iPhone15,3',
     languageCode: 'en-EN',
@@ -470,7 +470,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
       appInstallationTime: Date.now(),
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'ios/0.2.0',
       uniqueMatchLinkToCheck: undefined, // Force heuristics matching
       device: {
         deviceModelName: 'iPhone17,1',
@@ -496,7 +496,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
+    // SDK version 0.2.0 uses legacy format (< 0.3.0) - KEEP THIS TEST FOR LEGACY FORMAT
     expect(matchResponse.body.deep_link_id).toBe(
       `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
     );
@@ -535,7 +535,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
       appInstallationTime: Date.now(),
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '0.5.0', // Non-legacy version
+      sdkVersion: 'android/0.5.0 build2003', // Non-legacy version
       uniqueMatchLinkToCheck: undefined,
       device: {
         deviceModelName: 'iPhone17,1',
@@ -602,7 +602,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
       appInstallationTime: appInstallTime,
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'ios/0.3.0',
       uniqueMatchLinkToCheck: undefined, // Force heuristics matching
       device: {
         deviceModelName: 'iPhone17,1',
@@ -629,10 +629,8 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
     console.log('Match response:', JSON.stringify(matchResponse.body, null, 2));
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
-    expect(matchResponse.body.deep_link_id).toBe(
-      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
-    );
+    // SDK version >= 0.3.0 returns plain link (new format)
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
   });
 
   test('should handle appInstallationTime in seconds (iOS format)', async () => {
@@ -672,7 +670,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
       appInstallationTime: appInstallTimeSeconds, // In SECONDS, not milliseconds
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'ios/0.1.0',
       uniqueMatchLinkToCheck: undefined,
       device: {
         deviceModelName: 'iPhone17,1',
@@ -698,7 +696,7 @@ describe('TraceBack Real World iPhone17,1 iOS18 Scenario', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
+    // SDK version 0.1.0 uses legacy format (< 0.3.0) - KEEP THIS TEST FOR LEGACY FORMAT
     expect(matchResponse.body.deep_link_id).toBe(
       `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
     );

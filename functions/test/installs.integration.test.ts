@@ -130,7 +130,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'ios/0.3.1',
         uniqueMatchLinkToCheck: clipboardUrl,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -148,10 +148,7 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 3. Verify response
       expect(response.statusCode).toBe(200);
-      // SDK version 1.0 uses legacy format
-      expect(response.body.deep_link_id).toBe(
-        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(clipboardUrl)}`,
-      );
+      expect(response.body.deep_link_id).toBe(clipboardUrl);
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
       expect(response.body.match_campaign).toBeUndefined();
@@ -191,7 +188,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.test.app',
         osVersion: '17.0',
-        sdkVersion: '0.3.0', // Non-legacy version
+        sdkVersion: 'android/0.3.0', // Non-legacy version
         uniqueMatchLinkToCheck: clipboardUrl,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -251,7 +248,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'ios/0.3.0',
         uniqueMatchLinkToCheck: clipboardCampaignUrl,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -269,13 +266,11 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 4. Verify response returns the followLink (not the campaign URL)
       expect(response.statusCode).toBe(200);
-      // SDK version 1.0 uses legacy format
-      expect(response.body.deep_link_id).toBe(
-        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(followLink)}`,
-      );
+      // SDK version >= 0.3.0 returns plain link (new format)
+      expect(response.body.deep_link_id).toBe(followLink);
       expect(response.body.match_type).toBe('unique');
       expect(response.body.match_message).toContain('uniquely matched');
-      expect(response.body.match_campaign).toBe(campaignPath);
+      expect(response.body.match_campaign).toBe('winter-sale');
     });
   });
 
@@ -307,7 +302,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'android/0.4.0 build3001',
         uniqueMatchLinkToCheck: 'https://example.com/different-link',
         device: {
           deviceModelName: 'iPhone14,5',
@@ -325,10 +320,8 @@ describe('Install Attribution - Integration Tests', () => {
 
       // 3. Verify response - should find via heuristics
       expect(response.statusCode).toBe(200);
-      // SDK version 1.0 uses legacy format
-      expect(response.body.deep_link_id).toBe(
-        `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent('https://example.com/some-link')}`,
-      );
+      // SDK version >= 0.3.0 returns plain link (new format)
+      expect(response.body.deep_link_id).toBe('https://example.com/some-link');
       expect(['heuristics', 'ambiguous']).toContain(response.body.match_type);
     });
   });
@@ -339,7 +332,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'ios/0.4.0',
         device: {
           deviceModelName: 'iPhone14,5',
           languageCode: 'en-US',
@@ -388,7 +381,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'android/0.3.5',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -438,7 +431,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: currentTime - 60000, // 60 seconds ago
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'ios/0.5.2',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -487,7 +480,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '1.0.0',
+        sdkVersion: 'android/0.6.0 build4002',
         uniqueMatchLinkToCheck: undefined,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -516,7 +509,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '0.3.0',
+        sdkVersion: 'ios/0.3.0',
         intentLink: intentLink,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -536,7 +529,7 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.body.deep_link_id).toBe(
         'https://direct.example.com/product',
       );
-      expect(response.body.match_type).toBe('none');
+      expect(response.body.match_type).toBe('intent');
     });
 
     test('should return campaign followLink when search fails and intentLink points to campaign', async () => {
@@ -558,7 +551,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '0.3.0',
+        sdkVersion: 'android/0.3.1',
         intentLink: intentLink,
         device: {
           deviceModelName: 'iPhone14,5',
@@ -578,8 +571,8 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.body.deep_link_id).toBe(
         'https://example.com/summer-campaign',
       );
-      expect(response.body.match_type).toBe('none');
-      expect(response.body.match_campaign).toBe('/summer-intent');
+      expect(response.body.match_type).toBe('intent');
+      expect(response.body.match_campaign).toBe('summer-intent');
     });
 
     test('should return matched link when search succeeds and intentLink matches', async () => {
@@ -609,7 +602,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '0.3.0',
+        sdkVersion: 'ios/0.4.5',
         uniqueMatchLinkToCheck: clipboardUrl,
         intentLink: `${HOST_BASE_URL}/some-campaign?link=${clipboardUrl}`,
         device: {
@@ -659,7 +652,7 @@ describe('Install Attribution - Integration Tests', () => {
         appInstallationTime: Date.now(),
         bundleId: 'com.example.app',
         osVersion: '14.0',
-        sdkVersion: '0.3.0',
+        sdkVersion: 'android/0.5.0 build5001',
         uniqueMatchLinkToCheck: clipboardUrl,
         intentLink: `${HOST_BASE_URL}/campaign?link=${differentIntentUrl}`,
         device: {
@@ -678,7 +671,7 @@ describe('Install Attribution - Integration Tests', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body.deep_link_id).toBe(differentIntentUrl);
-      expect(response.body.match_type).toBe('unique');
+      expect(response.body.match_type).toBe('intent');
       expect(response.body.match_message).toContain('intentLink');
     });
   });

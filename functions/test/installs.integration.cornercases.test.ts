@@ -35,7 +35,7 @@ const getTestFingerprint = () => ({
   appInstallationTime: Date.now(),
   bundleId: 'com.test.app',
   osVersion: '17.4',
-  sdkVersion: '1.0.0',
+  sdkVersion: 'ios/0.3.0',
   uniqueMatchLinkToCheck: `http://127.0.0.1:5002/fingerprint-${generateUniqueTestId()}?_lang=en-EN&_langs=en-EN&_tz=Europe%2FMadrid&_res=2560x1440&_dpr=1&_plt=MacIntel`,
   device: {
     deviceModelName: 'iPhone15,3',
@@ -52,7 +52,7 @@ const getTestFingerprintMissingKey = () => ({
   appInstallationTime: Date.now(),
   bundleId: 'com.test.app',
   osVersion: '17.4',
-  sdkVersion: '1.0.0',
+  sdkVersion: 'android/0.3.1',
   device: {
     deviceModelName: 'iPhone15,3',
     languageCode: 'en-EN',
@@ -131,7 +131,7 @@ describe('Install Search by heuristics - corner cases', () => {
 
     const uniqueFingerprint = {
       ...getTestFingerprintMissingKey(),
-      sdkVersion: '0.4.0', // Non-legacy version
+      sdkVersion: 'ios/0.4.0', // Non-legacy version
       device: {
         ...getTestFingerprintMissingKey().device,
         screenResolutionWidth: 414,
@@ -506,7 +506,7 @@ describe('Install Search by heuristics - real world scenarios', () => {
       appInstallationTime: Date.now(),
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'ios/0.3.5',
       uniqueMatchLinkToCheck: undefined, // Force heuristics matching
       device: {
         deviceModelName: 'iPhone17,1',
@@ -532,10 +532,8 @@ describe('Install Search by heuristics - real world scenarios', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
-    expect(matchResponse.body.deep_link_id).toBe(
-      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
-    );
+    // SDK version >= 0.3.0 returns plain link (new format)
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
   });
 
   test('should match iPhone17,1 iOS18 with realistic production timing (2 minutes delay)', async () => {
@@ -575,7 +573,7 @@ describe('Install Search by heuristics - real world scenarios', () => {
       appInstallationTime: appInstallTime,
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'android/0.4.0 build3003',
       uniqueMatchLinkToCheck: undefined, // Force heuristics matching
       device: {
         deviceModelName: 'iPhone17,1',
@@ -602,10 +600,8 @@ describe('Install Search by heuristics - real world scenarios', () => {
     console.log('Match response:', JSON.stringify(matchResponse.body, null, 2));
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
-    expect(matchResponse.body.deep_link_id).toBe(
-      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
-    );
+    // SDK version >= 0.3.0 returns plain link (new format)
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
   });
 
   test('should handle appInstallationTime in seconds (iOS format)', async () => {
@@ -645,7 +641,7 @@ describe('Install Search by heuristics - real world scenarios', () => {
       appInstallationTime: appInstallTimeSeconds, // In SECONDS, not milliseconds
       bundleId: 'com.inqbarna.familymealplan',
       osVersion: '18.0',
-      sdkVersion: '1.2.2',
+      sdkVersion: 'ios/0.5.0',
       uniqueMatchLinkToCheck: undefined,
       device: {
         deviceModelName: 'iPhone17,1',
@@ -671,9 +667,7 @@ describe('Install Search by heuristics - real world scenarios', () => {
 
     expect(matchResponse.statusCode).toBe(200);
     expect(matchResponse.body.match_type).toBe('heuristics');
-    // SDK version 1.2.2 uses legacy format
-    expect(matchResponse.body.deep_link_id).toBe(
-      `https://iqbdemocms-traceback.web.app?link=${encodeURIComponent(browserHeuristics.clipboard)}`,
-    );
+    // SDK version >= 0.3.0 returns plain link (new format)
+    expect(matchResponse.body.deep_link_id).toBe(browserHeuristics.clipboard);
   });
 });
