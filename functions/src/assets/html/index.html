@@ -233,21 +233,18 @@
           );
           window.location.href = `intent:#Intent;scheme={{androidScheme}};package={{androidBundleID}};S.browser_fallback_url=${fallbackUrl};end`;
         } else {
-          // Build UTM parameters string for referrer
+          // Add UTM parameters to filteredURL
           const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-          const utmParts = [];
           utmParams.forEach(param => {
             const value = currentURL.searchParams.get(param);
             if (value) {
-              utmParts.push(`${param}%3D${encodeURIComponent(value)}`);
+              filteredURL.searchParams.set(param, value);
             }
           });
-          const utmString = utmParts.length > 0 ? '%25' + utmParts.join('%25') : '';
 
           const playStoreLocation =
             'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' +
-            encodeURIComponent(filteredURL) + 
-            utmString;
+            encodeURIComponent(filteredURL.toString());
           window.location.href = playStoreLocation;
         }
       } else {
