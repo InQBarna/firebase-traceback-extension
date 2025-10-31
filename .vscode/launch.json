@@ -34,7 +34,7 @@
           "type": "node",
           "request": "launch",
           "name": "Debug Extension with Emulators + Seed",
-          "preLaunchTask": "Start Emulators and Seed",
+          "preLaunchTask": "Start Dev Environment",
           "runtimeExecutable": "node",
           "runtimeArgs": ["-e", "0"],
           "skipFiles": ["<node_internals>/**"],

@@ -3,16 +3,15 @@
   "jest.disabledWorkspaceFolders": [],
   "jest.coverageFormatter": "DefaultFormatter",
   "jest.nodeEnv": {
-    "NODE_ENV": "test"
+    "NODE_ENV": "test",
+    // "GOOGLE_APPLICATION_CREDENTIALS": "/Users/sergihernanz/Documents/firebase_credentials/familymealplan-pre-firebase-adminsdk-d2xn8-ebe3c7f28d.json",
+    // "TRACEBACK_API_URL": "https://familymealplan-pre-traceback.web.app"
   },
   "testing.automaticallyOpenPeekView": "never",
   "testing.automaticallyOpenTestResults": "neverOpen",
   "typescript.tsdk": "functions/node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-  "eslint.workingDirectories": [
-    "functions"
-  ],
-  "typescript.tsserver.experimental.enableProjectDiagnostics": false,
+  "eslint.workingDirectories": ["functions"],
   "files.exclude": {
     "**/node_modules": true,
     "**/lib": true
