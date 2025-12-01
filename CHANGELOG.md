@@ -1,3 +1,7 @@
+## Version 0.5.1
+
+- Fixes to analytics
+
 ## Version 0.5.0
 
 - Daily analytics for dynamic/short links with new structure (open_link_preview, redirects, first_opens_intent, first_opens_install, reopens)
