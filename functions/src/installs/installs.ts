@@ -190,7 +190,7 @@ async function buildMatchResponse(
       if (resolvedIntentLink && resolvedIntentLink.link !== matchedLink) {
         // Intent link differs from matched link - return intent link
         return {
-          matchedLink: matchedLink,
+          matchedLink: fingerprint.intentLink,
           partialMatchResponse: {
             deep_link_id: formatDeepLinkId(
               resolvedIntentLink.link,
@@ -209,7 +209,7 @@ async function buildMatchResponse(
 
     // No intentLink or it matches - return matched link
     return {
-      matchedLink: matchedLink,
+      matchedLink: matchedClipboard,
       partialMatchResponse: {
         deep_link_id: formatDeepLinkId(matchedLink, fingerprint.sdkVersion),
         match_type: result.matchType,
@@ -228,7 +228,7 @@ async function buildMatchResponse(
     if (resolvedIntentLink.link) {
       // Return resolved intent link
       return {
-        matchedLink: undefined,
+        matchedLink: fingerprint.intentLink,
         partialMatchResponse: {
           deep_link_id: formatDeepLinkId(
             resolvedIntentLink.link,
@@ -253,7 +253,7 @@ async function buildMatchResponse(
     const deepLinkId =
       resolvedClipboardLink.link ?? fingerprint.uniqueMatchLinkToCheck;
     return {
-      matchedLink: undefined,
+      matchedLink: fingerprint.uniqueMatchLinkToCheck,
       partialMatchResponse: {
         deep_link_id: formatDeepLinkId(deepLinkId, fingerprint.sdkVersion),
         match_type: MatchType.NO_MATCH,
