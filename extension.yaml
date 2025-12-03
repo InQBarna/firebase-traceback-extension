@@ -30,7 +30,7 @@ apis:
 roles:
   - role: firebasehosting.admin
     reason: Install script ensures a hosting is created as an associated domain.
-  - role: datastore.owner
+  - role: datastore.user
     reason: Firestore is used to keep track of app installation traces, store dynamic campaign links to firestore.
 
 resources:
