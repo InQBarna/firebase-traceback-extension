@@ -1,3 +1,7 @@
+## Version 0.6.0
+
+- Now utm_* parameters are forwared on all campaigns
+
 ## Version 0.5.1
 
 - Fixes to analytics
