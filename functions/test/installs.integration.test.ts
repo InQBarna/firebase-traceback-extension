@@ -101,9 +101,10 @@ describe('Install Attribution - Integration Tests', () => {
     });
   });
 
-  describe('Install Search with clipboard - unique with utms', () => {
-    test('should find install by clipboard content (unique match)', async () => {
-      const clipboardUrl = 'https://example.com/unique-test-link?utm_source=newsletter&utm_medium=email';
+  describe('Install Search with clipboard - unique', () => {
+    test('should find install by clipboard content (unique match) with utm', async () => {
+      const clipboardUrl =
+        'https://example.com/unique-test-link?utm_source=newsletter&utm_medium=email';
 
       // 1. Create a preinstall record
       const installId = 'test-install-123';
@@ -209,6 +210,7 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.body.deep_link_id).toBe(clipboardUrl);
       expect(response.body.match_type).toBe('unique');
     });
+
     test('should find install by clipboard content (unique match)', async () => {
       const clipboardUrl = 'https://example.com/unique-test-link';
 

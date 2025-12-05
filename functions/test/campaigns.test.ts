@@ -65,11 +65,11 @@ describe('Campaign API - v1_get_campaign', () => {
         path: '/summer',
         title: 'Summer Sale',
         description: 'Test campaign',
-        followLink: 'https://example.com/products/summer-sale?utm_campaign=launch&utm_medium=email',
+        followLink: 'https://example.com/products/summer-sale',
       });
 
       // 2. Request the campaign with encoded URL
-      const testUrl = `${HOST_BASE_URL}/summer`;
+      const testUrl = `${HOST_BASE_URL}/summer?utm_campaign=launch&utm_medium=email`;
       const encodedUrl = encodeURIComponent(testUrl);
 
       const response = await request(HOST_BASE_URL)
@@ -188,7 +188,7 @@ describe('Campaign API - v1_get_campaign', () => {
         .expect(200);
 
       expect(response.body).toEqual({
-        result: 'https://example.com/promo?code=SAVE20',
+        result: 'https://example.com/promo?code=SAVE20&utm_source=email',
       });
     });
   });

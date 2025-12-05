@@ -23,6 +23,7 @@ export const link_preview = async function (
   const linkPath = urlObject.pathname;
 
   // Find the dynamic link by path
+  console.log('Link path:', linkPath);
   const linkResult = await findDynamicLinkByPath(linkPath);
 
   const host =
@@ -34,6 +35,7 @@ export const link_preview = async function (
 
   // If not found, return default response
   let source: string;
+  console.log('Link result:', linkResult);
   if (!linkResult) {
     source = await getUnknownLinkResponse(config);
   } else {

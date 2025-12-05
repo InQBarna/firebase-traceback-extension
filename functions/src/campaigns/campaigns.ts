@@ -32,6 +32,7 @@ export const private_v1_get_campaign = async function (
 
     // If no link parameter provided, use default campaign path
     let linkPath = '/default';
+    let url = new URL('about:blank');
 
     if (encodedLink) {
       // Decode the URL
@@ -46,7 +47,7 @@ export const private_v1_get_campaign = async function (
 
       // Parse the URL to extract the path
       try {
-        const url = new URL(decodedLink);
+        url = new URL(decodedLink);
         linkPath = url.pathname;
       } catch (_error) {
         return res.status(400).json({
@@ -93,8 +94,15 @@ export const private_v1_get_campaign = async function (
     // If parameter is not provided or invalid, no analytics are tracked
 
     // Return the followLink
+    // Copy UTM parameters from the current request to the followLink
+    const followLinkUrl: URL = new URL(linkResult.data.followLink);
+    for (const [key, value] of url.searchParams.entries()) {
+      if (key.startsWith('utm_')) {
+        followLinkUrl.searchParams.set(key, value);
+      }
+    }
     return res.status(200).json({
-      result: linkResult.data.followLink,
+      result: followLinkUrl,
     });
   } catch (error) {
     functions.logger.error('Error in v1_get_campaign:', error);
