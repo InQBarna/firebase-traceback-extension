@@ -89,12 +89,19 @@ export async function resolveTracebackLink(
   try {
     const url = new URL(link);
     const linkPath = url.pathname;
+    const utmParams = Object.fromEntries(
+      [...url.searchParams.entries()].filter(([key]) => key.startsWith('utm_')),
+    );
 
     // First, try to find campaign by path
     const linkResult = await findDynamicLinkByPath(linkPath);
 
     if (linkResult?.data.followLink) {
       // Campaign found, return its followLink and campaign data
+      const finalUrl = new URL(linkResult.data.followLink);
+      for (const [key, value] of Object.entries(utmParams)) {
+        finalUrl.searchParams.set(key, value);
+      }
       return {
         link: linkResult.data.followLink,
         campaign: linkResult.data,

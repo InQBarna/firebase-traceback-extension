@@ -47,9 +47,18 @@ export const link_preview = async function (
         AnalyticsEventType.OPEN_LINK_PREVIEW,
       );
 
+      // Forward UTM parameters to the followLink
+      const followLinkUrl = new URL(dynamicLink.followLink);
+      // Copy UTM parameters from the current request to the followLink
+      for (const [key, value] of currentUrl.searchParams.entries()) {
+        if (key.startsWith('utm_')) {
+          followLinkUrl.searchParams.set(key, value);
+        }
+      }
+
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);
-      redirectUrl.searchParams.set('link', dynamicLink.followLink);
+      redirectUrl.searchParams.set('link', followLinkUrl.toString());
       res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }

@@ -59,6 +59,29 @@ describe('Campaign API - v1_get_campaign', () => {
       });
     });
 
+    test('should return followLink for valid campaign with utms', async () => {
+      // 1. Create a dynamic link
+      await createDynamicLink({
+        path: '/summer',
+        title: 'Summer Sale',
+        description: 'Test campaign',
+        followLink: 'https://example.com/products/summer-sale?utm_campaign=launch&utm_medium=email',
+      });
+
+      // 2. Request the campaign with encoded URL
+      const testUrl = `${HOST_BASE_URL}/summer`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      const response = await request(HOST_BASE_URL)
+        .get(`/v1_get_campaign?link=${encodedUrl}`)
+        .expect(200);
+
+      // 3. Verify response
+      expect(response.body).toEqual({
+        result: 'https://example.com/products/summer-sale?utm_campaign=launch&utm_medium=email',
+      });
+    });
+
     test('should return 404 for root path', async () => {
       const testUrl = `${HOST_BASE_URL}/`;
       const encodedUrl = encodeURIComponent(testUrl);
@@ -338,6 +361,64 @@ describe('Campaign API - v1_get_campaign', () => {
       const redirectUrl = new URL(linkResponse.headers.location, HOST_BASE_URL);
       expect(redirectUrl.searchParams.get('link')).toBe(
         testLinks.example.followLink,
+      );
+      expect(redirectUrl.pathname).toBe('/example');
+
+      // 5. Verify redirect stays on hosting domain (not internal Cloud Functions domain)
+      const expectedHostname = HOST_BASE_URL.includes('127.0.0.1')
+        ? '127.0.0.1'
+        : new URL(HOST_BASE_URL).hostname;
+      const expectedProtocol = HOST_BASE_URL.startsWith('https')
+        ? 'https:'
+        : 'http:';
+
+      expect(redirectUrl.hostname).toBe(expectedHostname);
+      expect(redirectUrl.protocol).toBe(expectedProtocol);
+      expect(redirectUrl.href).not.toContain('cloudfunctions.net');
+    });
+
+    test('should return HTML preview when link parameter already exists', async () => {
+      // 1. Create a test dynamic link
+      await createDynamicLink(testLinks.example);
+
+      // 2. Request with link parameter already in URL - should not redirect again
+      const linkResponse = await request(HOST_BASE_URL)
+        .get('/example?link=https://alreadyhere.com')
+        .redirects(0);
+
+      // 3. Should return 200 with HTML content (not redirect)
+      expect(linkResponse.statusCode).toBe(200);
+      expect(linkResponse.headers['content-type']).toMatch(/html/);
+    });
+
+    test('should return 200 for unknown path', async () => {
+      // Request a path that doesn't exist in dynamic links
+      const linkResponse = await request(HOST_BASE_URL)
+        .get('/nonexistent-path-12345')
+        .redirects(0);
+
+      // Should return 200 with default HTML (not 404)
+      expect(linkResponse.statusCode).toBe(200);
+      expect(linkResponse.headers['content-type']).toMatch(/html/);
+    });
+    test('should redirect when followLink is present with utms', async () => {
+      // 1. Create a test dynamic link
+      await createDynamicLink(testLinks.example);
+
+      // 2. Request the /example path (which should have the test link)
+      const linkResponse = await request(HOST_BASE_URL)
+        .get('/example?utm_source=newsletter&utm_medium=email')
+        .redirects(0); // Don't follow redirects automatically
+
+      // 3. Verify redirect response
+      expect(linkResponse.statusCode).toBe(302);
+      expect(linkResponse.headers.location).toBeDefined();
+
+      // 4. Verify the redirect URL contains the link parameter and uses correct host
+      const redirectUrl = new URL(linkResponse.headers.location, HOST_BASE_URL);
+      expect(redirectUrl.searchParams.get('link')).toBe(
+        testLinks.example.followLink +
+          '?utm_source=newsletter&utm_medium=email',
       );
       expect(redirectUrl.pathname).toBe('/example');
 

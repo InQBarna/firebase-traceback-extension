@@ -101,7 +101,114 @@ describe('Install Attribution - Integration Tests', () => {
     });
   });
 
-  describe('Install Search with clipboard - unique', () => {
+  describe('Install Search with clipboard - unique with utms', () => {
+    test('should find install by clipboard content (unique match)', async () => {
+      const clipboardUrl = 'https://example.com/unique-test-link?utm_source=newsletter&utm_medium=email';
+
+      // 1. Create a preinstall record
+      const installId = 'test-install-123';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          devicePixelRatio: 2,
+          platform: 'MacIntel',
+          userAgent: 'Mozilla/5.0',
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Call postinstall search
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: 'ios/0.3.1',
+        uniqueMatchLinkToCheck: clipboardUrl,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      // 3. Verify response
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(clipboardUrl);
+      expect(response.body.match_type).toBe('unique');
+      expect(response.body.match_message).toContain('uniquely matched');
+      expect(response.body.match_campaign).toBeUndefined();
+
+      // 4. Verify install record was removed
+      const installDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .get();
+
+      expect(installDoc.exists).toBe(false);
+    });
+
+    test('should return plain link for SDK version 0.3.0 (non-legacy format)', async () => {
+      const clipboardUrl = `http://127.0.0.1:5002/test-link-${generateUniqueTestId()}`;
+
+      // 1. Save install with clipboard
+      const installId = `test-install-${generateUniqueTestId()}`;
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          clipboard: clipboardUrl,
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Search with matching fingerprint using SDK 0.3.0
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.test.app',
+        osVersion: '17.0',
+        sdkVersion: 'android/0.3.0', // Non-legacy version
+        uniqueMatchLinkToCheck: clipboardUrl,
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      // 3. Verify response returns plain link (not wrapped in legacy format)
+      expect(response.statusCode).toBe(200);
+      expect(response.body.deep_link_id).toBe(clipboardUrl);
+      expect(response.body.match_type).toBe('unique');
+    });
     test('should find install by clipboard content (unique match)', async () => {
       const clipboardUrl = 'https://example.com/unique-test-link';
 
@@ -322,6 +429,60 @@ describe('Install Attribution - Integration Tests', () => {
       expect(response.statusCode).toBe(200);
       // SDK version >= 0.3.0 returns plain link (new format)
       expect(response.body.deep_link_id).toBe('https://example.com/some-link');
+      expect(['heuristics', 'ambiguous']).toContain(response.body.match_type);
+    });
+  });
+
+  describe('Install Search by heuristics - heuristics', () => {
+    test('should find install by heuristics when clipboard match fails', async () => {
+      // 1. Create a preinstall record without exact clipboard match
+      const installId = 'test-install-456';
+      await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(INSTALLS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .doc(installId)
+        .set({
+          language: 'en-US',
+          languages: ['en-US'],
+          timezone: 'America/New_York',
+          screenWidth: 1920,
+          screenHeight: 1080,
+          devicePixelRatio: 2,
+          platform: 'MacIntel',
+          userAgent:
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15',
+          clipboard: 'https://example.com/some-link?utm_source=newsletter&utm_medium=email',
+          createdAt: Timestamp.now(),
+        });
+
+      // 2. Call postinstall search with different clipboard but matching heuristics
+      const fingerprint = {
+        appInstallationTime: Date.now(),
+        bundleId: 'com.example.app',
+        osVersion: '14.0',
+        sdkVersion: 'android/0.4.0 build3001',
+        uniqueMatchLinkToCheck: 'https://example.com/different-link',
+        device: {
+          deviceModelName: 'iPhone14,5',
+          languageCode: 'en-US',
+          languageCodeRaw: 'en-US',
+          screenResolutionWidth: 1920,
+          screenResolutionHeight: 1080,
+          timezone: 'America/New_York',
+        },
+      };
+
+      const response = await request(HOST_BASE_URL)
+        .post('/v1_postinstall_search_link')
+        .send(fingerprint);
+
+      // 3. Verify response - should find via heuristics
+      expect(response.statusCode).toBe(200);
+      // SDK version >= 0.3.0 returns plain link (new format)
+      expect(response.body.deep_link_id).toBe(
+        'https://example.com/some-link?utm_source=newsletter&utm_medium=email',
+      );
       expect(['heuristics', 'ambiguous']).toContain(response.body.match_type);
     });
   });
