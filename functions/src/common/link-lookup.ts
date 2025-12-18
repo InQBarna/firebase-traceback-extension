@@ -103,7 +103,7 @@ export async function resolveTracebackLink(
         finalUrl.searchParams.set(key, value);
       }
       return {
-        link: linkResult.data.followLink,
+        link: finalUrl.toString(),
         campaign: linkResult.data,
       };
     }
