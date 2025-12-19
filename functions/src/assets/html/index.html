@@ -91,7 +91,7 @@
         letter-spacing: 0.5px;
         transition: background-color 0.2s;
       }
-    
+
       #installLink:hover {
         background-color: #1765c1;
       }
@@ -104,6 +104,28 @@
         color: #5f6368;
         margin-bottom: 24px;
         text-align: left;
+      }
+
+      #storeButtons {
+        display: none;
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .store-button {
+        cursor: pointer;
+        transition: opacity 0.2s;
+        height: 60px;
+        width: auto;
+      }
+
+      .store-button:hover {
+        opacity: 0.8;
+      }
+
+      .desktop-only {
+        display: none;
       }
 
     </style>
@@ -130,10 +152,15 @@
               Save my place in the app. A link will be copied to continue to this page.
             </label>
           </div>
-          <div>
+          <div id="mobileButton">
             <div id="installLink">
             OPEN
             </div>
+          </div>
+          <div id="storeButtons">
+            <p class="desktop-only" style="color: #5f6368; font-size: 14px; margin-bottom: 8px;">Download the app:</p>
+            <img id="appStoreButton" class="store-button" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1234567890" alt="Download on the App Store">
+            <img id="playStoreButton" class="store-button" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play">
           </div>
         </div>
       </div>
@@ -192,8 +219,33 @@
     const isAndroid = /Android/i.test(navigator.userAgent);
     const isDesktop = !isIOS && !isAndroid;
 
+    // Check if we have a link parameter
+    const currentURL = new URL(window.location.href);
+    const originalLinkParam = currentURL.searchParams.get("link");
+
+    // Show appropriate buttons based on platform
+    if (isDesktop) {
+      document.getElementById('mobileButton').style.display = 'none';
+      document.getElementById('checkboxDiv').style.display = 'none';
+
+      // Only show store buttons if there's NO link to redirect to
+      if (!originalLinkParam) {
+        document.getElementById('storeButtons').style.display = 'flex';
+        document.querySelectorAll('.desktop-only').forEach(el => el.style.display = 'block');
+      }
+    }
+
     async function handleRedirect() {
       // example: http://127.0.0.1:5002/xxx?_lang=en-US&_langs=en-US&_tz=Europe%2FMadrid&_res=1710x1107&_dpr=2&_plt=MacIntel
+
+      const currentURL = new URL(window.location.href);
+      const originalLinkParam = currentURL.searchParams.get("link");
+
+      // Don't redirect if there's no link parameter
+      if (!originalLinkParam) {
+        console.log('No link parameter found - staying on page');
+        return;
+      }
 
       const checkbox = document.getElementById("clipboardCheckbox");
       if (checkbox?.checked) {
@@ -207,9 +259,6 @@
         },
         body: JSON.stringify(heuristicsWithClipboard)
       });
-
-      const currentURL = new URL(window.location.href);
-      const originalLinkParam = currentURL.searchParams.get("link");
 
       // Create filtered URL with only 'link' param for referrer
       const filteredURL = new URL(currentURL.origin + currentURL.pathname);
@@ -252,10 +301,21 @@
       }
     }
 
-    // Auto-redirect on desktop, wait for click on mobile
+    // Setup event listeners based on platform
     if (isDesktop) {
-      // Auto-redirect for desktop users
-      handleRedirect();
+      if (originalLinkParam) {
+        // Auto-redirect for desktop users when link parameter exists
+        handleRedirect();
+      } else {
+        // Show store buttons for desktop users (no link to redirect to)
+        document.getElementById("appStoreButton").addEventListener("click", () => {
+          window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
+        });
+
+        document.getElementById("playStoreButton").addEventListener("click", () => {
+          window.location.href = 'https://play.google.com/store/apps/details?id={{androidBundleID}}';
+        });
+      }
     } else {
       // Wait for user click on mobile
       document.getElementById("installLink").addEventListener("click", handleRedirect);
