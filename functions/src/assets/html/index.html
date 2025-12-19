@@ -188,16 +188,14 @@
       clipboard: urlWithHeuristics
     };
 
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const isDesktop = !isIOS && !isAndroid;
 
-
-
-    document.getElementById("installLink").addEventListener("click", async (e) => {
-
+    async function handleRedirect() {
       // example: http://127.0.0.1:5002/xxx?_lang=en-US&_langs=en-US&_tz=Europe%2FMadrid&_res=1710x1107&_dpr=2&_plt=MacIntel
 
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const checkbox = document.getElementById("clipboardCheckbox");
-      const isAndroid = /Android/i.test(navigator.userAgent);
       if (checkbox?.checked) {
         copyToClipboard(urlWithHeuristics);
       }
@@ -222,8 +220,8 @@
       //  This followLink behaviour was meant when no app wants to e opened, kept
       //   so in the future we want this behaviour
       // if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
-      //   window.location.href = '{{followLink}}';
-      // } else 
+      //   window.location.replace('{{followLink}}');
+      // } else
       if (isIOS) {
         window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
       } else if (isAndroid) {
@@ -248,10 +246,20 @@
           window.location.href = playStoreLocation;
         }
       } else {
-        console.log('Not iOs or android detected')
-        window.location.href = originalLinkParam;
+        console.log('Not iOs or android detected - redirecting to destination')
+        // Use location.replace() instead of location.href to preserve referrer
+        window.location.replace(originalLinkParam);
       }
-    });
+    }
+
+    // Auto-redirect on desktop, wait for click on mobile
+    if (isDesktop) {
+      // Auto-redirect for desktop users
+      handleRedirect();
+    } else {
+      // Wait for user click on mobile
+      document.getElementById("installLink").addEventListener("click", handleRedirect);
+    }
   </script>
   
   </html>
