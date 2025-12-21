@@ -35,9 +35,10 @@ export const link_preview = async function (
 
   // If not found, return default response
   let source: string;
+  const countryCode = 'es';
   console.log('Link result:', linkResult);
   if (!linkResult) {
-    source = await getUnknownLinkResponse(config);
+    source = await getUnknownLinkResponse(config, countryCode);
   } else {
     // If followLink is available, redirect with link parameter
     const dynamicLink = linkResult.data;
@@ -64,7 +65,7 @@ export const link_preview = async function (
       res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }
-    source = await getPreviewLinkResponse(dynamicLink, config);
+    source = await getPreviewLinkResponse(dynamicLink, config, countryCode);
   }
 
   res.setHeader('Cache-Control', 'no-cache');
@@ -83,23 +84,31 @@ interface LinkInfo {
 async function getPreviewLinkResponse(
   dynamicLink: DynamicLink,
   config: Config,
+  countryCode: string,
 ): Promise<string> {
-  const linkInfo = await getFirestoreDynamicLinkInfo(dynamicLink, config);
+  const linkInfo = await getFirestoreDynamicLinkInfo(
+    dynamicLink,
+    config,
+    countryCode,
+  );
   return getDynamicLinkHTMLResponse(linkInfo, config);
 }
 
-async function getUnknownLinkResponse(config: Config): Promise<string> {
+async function getUnknownLinkResponse(
+  config: Config,
+  countryCode: string,
+): Promise<string> {
   // Get iOS AppStore appID
   const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
     config.iosBundleID,
-    'es',
+    countryCode,
   );
 
   return getDynamicLinkHTMLResponse(
     {
-      title: '',
-      description: 'app store description',
-      image: '',
+      title: appStoreInfo?.trackName ?? '',
+      description: appStoreInfo?.description ?? '',
+      image: appStoreInfo?.artworkUrl100 ?? '',
       followLink: new URL('about:blank'),
       expires: new Date().getTime(),
       appStoreInfo: appStoreInfo,
@@ -111,6 +120,7 @@ async function getUnknownLinkResponse(config: Config): Promise<string> {
 async function getFirestoreDynamicLinkInfo(
   dynamicLink: DynamicLink,
   config: Config,
+  countryCode: string,
 ): Promise<LinkInfo> {
   // Gather metadata
   const title = dynamicLink.title || '';
@@ -125,11 +135,10 @@ async function getFirestoreDynamicLinkInfo(
     throw { expired: true };
   }
 
-  // Get iOS AppStore appID
-  // TODO: static var with appStoreID
+  // Get iOS AppStore appID using user's country code
   const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
     config.iosBundleID,
-    'es',
+    countryCode,
   );
 
   return {
@@ -161,9 +170,10 @@ async function getDynamicLinkHTMLResponse(
         ? linkInfo.image
         : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''),
     )
+    .replaceAll('{{app_icon}}', linkInfo.appStoreInfo?.artworkUrl100 ?? '')
     .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
     .replaceAll(
       '{{app_description}}',
-      linkInfo.appStoreInfo?.description ?? '',
+      linkInfo.appStoreInfo?.description.replace(/\n/g, '<br/>') ?? '',
     );
 }
