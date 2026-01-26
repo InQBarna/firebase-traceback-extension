@@ -128,6 +128,14 @@
         display: none;
       }
 
+      #redirectMessage {
+        display: none;
+        font-size: 14px;
+        color: #5f6368;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+
     </style>
     
   </head>
@@ -151,6 +159,9 @@
             <label for="clipboardCheckbox">
               Save my place in the app. A link will be copied to continue to this page.
             </label>
+          </div>
+          <div id="redirectMessage">
+            You're being redirected... Tap OPEN if this fails
           </div>
           <div id="mobileButton">
             <div id="installLink">
@@ -225,11 +236,16 @@
 
     // Show appropriate buttons based on platform
     if (isDesktop) {
-      document.getElementById('mobileButton').style.display = 'none';
-      document.getElementById('checkboxDiv').style.display = 'none';
-
-      // Only show store buttons if there's NO link to redirect to
-      if (!originalLinkParam) {
+      // For desktop, show OPEN button if there's a link to redirect to
+      if (originalLinkParam) {
+        // Keep the OPEN button visible for desktop
+        document.getElementById('checkboxDiv').style.display = 'none';
+        // Show redirect message immediately
+        document.getElementById('redirectMessage').style.display = 'block';
+      } else {
+        // Only show store buttons if there's NO link to redirect to
+        document.getElementById('mobileButton').style.display = 'none';
+        document.getElementById('checkboxDiv').style.display = 'none';
         document.getElementById('storeButtons').style.display = 'flex';
       }
     }
@@ -303,8 +319,16 @@
     // Setup event listeners based on platform
     if (isDesktop) {
       if (originalLinkParam) {
-        // Auto-redirect for desktop users when link parameter exists
-        handleRedirect();
+        // Show OPEN button and set up auto-redirect after delay
+        const installLink = document.getElementById("installLink");
+
+        // Add click handler for manual redirect
+        installLink.addEventListener("click", handleRedirect);
+
+        // Auto-redirect after 1.5 seconds to give GA4 time to track the page view
+        setTimeout(() => {
+          handleRedirect();
+        }, 1500);
       } else {
         // Show store buttons for desktop users (no link to redirect to)
         document.getElementById("appStoreButton").addEventListener("click", () => {

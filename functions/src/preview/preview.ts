@@ -40,16 +40,16 @@ export const link_preview = async function (
   if (!linkResult) {
     source = await getUnknownLinkResponse(config, countryCode);
   } else {
-    // If followLink is available, redirect with link parameter
+    // Track the open before redirecting
+    await trackLinkAnalytics(
+      linkResult.id,
+      AnalyticsEventType.OPEN_LINK_PREVIEW,
+    );
+
+    // If followLink is available, redirect with link parameter (if missing)
     const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
-      // Track the open before redirecting
-      await trackLinkAnalytics(
-        linkResult.id,
-        AnalyticsEventType.OPEN_LINK_PREVIEW,
-      );
-
       // Forward UTM parameters to the followLink
       const followLinkUrl = new URL(dynamicLink.followLink);
       // Copy UTM parameters from the current request to the followLink
