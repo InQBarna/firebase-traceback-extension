@@ -1,6 +1,7 @@
 ## Version 0.6.0
 
 - Now utm_* parameters are forwared on all campaigns
+- Fix campaign with already extracted link parameter now reported to traceback analytics
 
 ## Version 0.5.1
 
