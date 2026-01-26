@@ -50,6 +50,18 @@ export const link_preview = async function (
     const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
+      // Inject referral UTMs from Referer header if no utm_source is set
+      const referer = req.headers.referer || req.headers.referrer;
+      if (referer && !currentUrl.searchParams.has('utm_source')) {
+        try {
+          const refererDomain = new URL(referer as string).hostname;
+          currentUrl.searchParams.set('utm_source', refererDomain);
+          currentUrl.searchParams.set('utm_medium', 'referral_traceback');
+        } catch (e) {
+          // Invalid referer URL, ignore
+        }
+      }
+
       // Forward UTM parameters to the followLink
       const followLinkUrl = new URL(dynamicLink.followLink);
       // Copy UTM parameters from the current request to the followLink
