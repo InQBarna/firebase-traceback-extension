@@ -45,6 +45,7 @@ export const link_preview = async function (
     const tb_prev_tracked = 'tb_prev_tracked';
     const utm_source = 'utm_source';
     const utm_medium = 'utm_medium';
+    const link = 'link';
 
     // Track the open before redirecting, only if not already tracked
     if (!currentUrl.searchParams.has(tb_prev_tracked)) {
@@ -55,7 +56,7 @@ export const link_preview = async function (
     }
 
     // If followLink is available, redirect with link parameter (if missing)
-    if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
+    if (dynamicLink.followLink && !currentUrl.searchParams.has(link)) {
       // Inject referral UTMs from Referer header if no utm_source is set
       const referer = req.headers.referer || req.headers.referrer;
       if (referer && !currentUrl.searchParams.has(utm_source)) {
@@ -77,12 +78,13 @@ export const link_preview = async function (
         }
       }
 
-      // Mark request as already tracked preview
-      currentUrl.searchParams.set(tb_prev_tracked, 'true');
-
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);
-      redirectUrl.searchParams.set('link', followLinkUrl.toString());
+      redirectUrl.searchParams.set(link, followLinkUrl.toString());
+
+      // Mark request as already tracked preview
+      redirectUrl.searchParams.set(tb_prev_tracked, 'true');
+
       res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }
