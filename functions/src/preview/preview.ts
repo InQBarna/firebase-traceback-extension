@@ -40,23 +40,29 @@ export const link_preview = async function (
   if (!linkResult) {
     source = await getUnknownLinkResponse(config, countryCode);
   } else {
-    // Track the open before redirecting
-    await trackLinkAnalytics(
-      linkResult.id,
-      AnalyticsEventType.OPEN_LINK_PREVIEW,
-    );
-
-    // If followLink is available, redirect with link parameter (if missing)
     const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
+    const tb_prev_tracked = 'tb_prev_tracked';
+    const utm_source = 'utm_source';
+    const utm_medium = 'utm_medium';
+
+    // Track the open before redirecting, only if not already tracked
+    if (!currentUrl.searchParams.has(tb_prev_tracked)) {
+      await trackLinkAnalytics(
+        linkResult.id,
+        AnalyticsEventType.OPEN_LINK_PREVIEW,
+      );
+    }
+
+    // If followLink is available, redirect with link parameter (if missing)
     if (dynamicLink.followLink && !currentUrl.searchParams.has('link')) {
       // Inject referral UTMs from Referer header if no utm_source is set
       const referer = req.headers.referer || req.headers.referrer;
-      if (referer && !currentUrl.searchParams.has('utm_source')) {
+      if (referer && !currentUrl.searchParams.has(utm_source)) {
         try {
           const refererDomain = new URL(referer as string).hostname;
-          currentUrl.searchParams.set('utm_source', refererDomain);
-          currentUrl.searchParams.set('utm_medium', 'referral_traceback');
+          currentUrl.searchParams.set(utm_source, refererDomain);
+          currentUrl.searchParams.set(utm_medium, 'referral_traceback');
         } catch (e) {
           // Invalid referer URL, ignore
         }
@@ -70,6 +76,9 @@ export const link_preview = async function (
           followLinkUrl.searchParams.set(key, value);
         }
       }
+
+      // Mark request as already tracked preview
+      currentUrl.searchParams.set(tb_prev_tracked, 'true');
 
       // Use the correct scheme and host (not the internal Cloud Functions domain)
       const redirectUrl = new URL(`${scheme}://${host}${req.originalUrl}`);
