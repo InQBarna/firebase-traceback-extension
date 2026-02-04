@@ -102,6 +102,10 @@ interface LinkInfo {
   followLink?: URL;
   expires: number;
   appStoreInfo?: AppStoreInfo;
+  appleAffiliateToken?: string;
+  appleCampaignText?: string;
+  appleMediaType?: string;
+  appleProviderId?: string;
 }
 
 async function getPreviewLinkResponse(
@@ -171,6 +175,10 @@ async function getFirestoreDynamicLinkInfo(
     followLink: new URL(followLink),
     expires: expiresNumber,
     appStoreInfo: appStoreInfo,
+    appleAffiliateToken: dynamicLink.appleAffiliateToken,
+    appleCampaignText: dynamicLink.appleCampaignText,
+    appleMediaType: dynamicLink.appleMediaType,
+    appleProviderId: dynamicLink.appleProviderId,
   };
 }
 
@@ -198,5 +206,9 @@ async function getDynamicLinkHTMLResponse(
     .replaceAll(
       '{{app_description}}',
       linkInfo.appStoreInfo?.description.replace(/\n/g, '<br/>') ?? '',
-    );
+    )
+    .replaceAll('{{appleAffiliateToken}}', linkInfo.appleAffiliateToken ?? '')
+    .replaceAll('{{appleCampaignText}}', linkInfo.appleCampaignText ?? '')
+    .replaceAll('{{appleMediaType}}', linkInfo.appleMediaType ?? '')
+    .replaceAll('{{appleProviderId}}', linkInfo.appleProviderId ?? '');
 }

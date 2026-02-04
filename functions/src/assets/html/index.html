@@ -180,6 +180,24 @@
 
   <script type="module">
 
+    function buildAppStoreUrl(baseAppStoreId) {
+      const baseUrl = `https://apps.apple.com/us/app/${baseAppStoreId}`;
+      const params = new URLSearchParams();
+
+      const affiliateToken = '{{appleAffiliateToken}}';
+      const campaignText = '{{appleCampaignText}}';
+      const mediaType = '{{appleMediaType}}';
+      const providerId = '{{appleProviderId}}';
+
+      if (affiliateToken) params.set('at', affiliateToken);
+      if (campaignText) params.set('ct', campaignText);
+      if (mediaType) params.set('mt', mediaType);
+      if (providerId) params.set('pt', providerId);
+
+      const queryString = params.toString();
+      return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+    }
+
     function copyToClipboard(urlWithHeuristics) {
       const input = document.createElement('input');
       input.value = urlWithHeuristics;
@@ -287,7 +305,7 @@
       //   window.location.replace('{{followLink}}');
       // } else
       if (isIOS) {
-        window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
+        window.location.href = buildAppStoreUrl('{{appStoreID}}');
       } else if (isAndroid) {
         if ('{{androidScheme}}' != '') {
           const fallbackUrl = encodeURIComponent(
@@ -332,7 +350,7 @@
       } else {
         // Show store buttons for desktop users (no link to redirect to)
         document.getElementById("appStoreButton").addEventListener("click", () => {
-          window.location.href = 'https://apps.apple.com/us/app/{{appStoreID}}';
+          window.location.href = buildAppStoreUrl('{{appStoreID}}');
         });
 
         document.getElementById("playStoreButton").addEventListener("click", () => {
