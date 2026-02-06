@@ -14,6 +14,8 @@ import {
 import {
   trackLinkAnalyticsByUrl,
   AnalyticsEventType,
+  getPlatformFromUserAgent,
+  getPlatformFromSdkVersion,
 } from '../analytics/track-analytics';
 import {
   TRACEBACK_COLLECTION,
@@ -144,22 +146,33 @@ function formatDeepLinkId(
 
 /**
  * Save analytics for matched install
- * @param result - The post-install search result
+ * @param postInstallSearchLink - The matched link URL from post-install search
+ * @param deep_link_id - The deep link ID
+ * @param sdkVersion - SDK version string (e.g., "ios/0.3.0", "android/1.2.3")
+ * @param userAgent - The user-agent string for platform detection (fallback)
  */
 async function saveMatchAnalytics(
   postInstallSearchLink: string | undefined,
   deep_link_id: string,
+  sdkVersion: string | undefined,
+  userAgent: string | undefined,
 ): Promise<void> {
+  // Try sdkVersion first (more reliable), then fall back to userAgent
+  const platform =
+    getPlatformFromSdkVersion(sdkVersion) ??
+    getPlatformFromUserAgent(userAgent);
   // Track install analytics for the matched link
   if (postInstallSearchLink) {
     await trackLinkAnalyticsByUrl(
       postInstallSearchLink,
       AnalyticsEventType.APP_FIRST_OPEN_INSTALL,
+      platform,
     );
   } else {
     await trackLinkAnalyticsByUrl(
       deep_link_id,
       AnalyticsEventType.APP_FIRST_OPEN_INTENT,
+      platform,
     );
   }
 }
@@ -321,6 +334,8 @@ export const private_v1_postinstall_search_link = functions
         await saveMatchAnalytics(
           resolvedResult.matchedLink,
           resolvedResult.partialMatchResponse.deep_link_id,
+          fingerprint.sdkVersion,
+          userAgent,
         );
       }
 
@@ -848,9 +863,11 @@ export const private_v1_preinstall_save_link = async (
 
     // Track analytics for the link if clipboard contains a link URL
     if (heuristics.clipboard) {
+      const platform = getPlatformFromUserAgent(heuristics.userAgent);
       await trackLinkAnalyticsByUrl(
         heuristics.clipboard,
         AnalyticsEventType.REDIRECT,
+        platform,
       );
     }
 

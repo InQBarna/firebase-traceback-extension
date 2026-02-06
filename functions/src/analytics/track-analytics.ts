@@ -5,6 +5,15 @@ import {
   RECORDS_COLLECTION,
   ANALYTICS_COLLECTION,
 } from '../common/constants';
+import { Platform } from '../common/platform';
+
+// Re-export platform utilities for convenience
+export {
+  Platform,
+  getPlatformFromUserAgent,
+  getPlatformFromSdkVersion,
+  parsePlatformParam,
+} from '../common/platform';
 
 export enum AnalyticsEventType {
   OPEN_LINK_PREVIEW = 'open_link_preview',
@@ -14,17 +23,32 @@ export enum AnalyticsEventType {
   APP_REOPEN = 'reopens',
 }
 
+interface LinkAnalyticsField {
+  [Platform.DESKTOP]: number;
+  [Platform.ANDROID]: number;
+  [Platform.IOS]: number;
+}
+
 interface LinkAnalytics {
-  [AnalyticsEventType.OPEN_LINK_PREVIEW]: number;
-  [AnalyticsEventType.REDIRECT]: number;
-  [AnalyticsEventType.APP_FIRST_OPEN_INTENT]: number;
-  [AnalyticsEventType.APP_FIRST_OPEN_INSTALL]: number;
-  [AnalyticsEventType.APP_REOPEN]: number;
+  [AnalyticsEventType.OPEN_LINK_PREVIEW]: LinkAnalyticsField;
+  [AnalyticsEventType.REDIRECT]: LinkAnalyticsField;
+  [AnalyticsEventType.APP_FIRST_OPEN_INTENT]: LinkAnalyticsField;
+  [AnalyticsEventType.APP_FIRST_OPEN_INSTALL]: LinkAnalyticsField;
+  [AnalyticsEventType.APP_REOPEN]: LinkAnalyticsField;
+}
+
+function createEmptyAnalyticsField(): LinkAnalyticsField {
+  return {
+    [Platform.DESKTOP]: 0,
+    [Platform.ANDROID]: 0,
+    [Platform.IOS]: 0,
+  };
 }
 
 export async function trackLinkAnalytics(
   linkId: string,
   eventType: AnalyticsEventType,
+  platform: Platform,
 ): Promise<void> {
   const db = admin.firestore();
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -43,18 +67,26 @@ export async function trackLinkAnalytics(
 
       if (doc.exists) {
         const data = doc.data() as LinkAnalytics;
+        const currentField = data[eventType] || createEmptyAnalyticsField();
+        const updatedField: LinkAnalyticsField = {
+          ...createEmptyAnalyticsField(),
+          ...currentField,
+          [platform]: (currentField[platform] || 0) + 1,
+        };
         transaction.update(analyticsDocRef, {
-          [eventType]: (data[eventType] || 0) + 1,
+          [eventType]: updatedField,
         });
       } else {
         const newAnalytics: LinkAnalytics = {
-          open_link_preview: 0,
-          redirects: 0,
-          first_opens_intent: 0,
-          first_opens_install: 0,
-          reopens: 0,
+          [AnalyticsEventType.OPEN_LINK_PREVIEW]: createEmptyAnalyticsField(),
+          [AnalyticsEventType.REDIRECT]: createEmptyAnalyticsField(),
+          [AnalyticsEventType.APP_FIRST_OPEN_INTENT]:
+            createEmptyAnalyticsField(),
+          [AnalyticsEventType.APP_FIRST_OPEN_INSTALL]:
+            createEmptyAnalyticsField(),
+          [AnalyticsEventType.APP_REOPEN]: createEmptyAnalyticsField(),
         };
-        newAnalytics[eventType] = 1;
+        newAnalytics[eventType][platform] = 1;
         transaction.set(analyticsDocRef, newAnalytics);
       }
     });
@@ -68,10 +100,12 @@ export async function trackLinkAnalytics(
  * Track analytics for a link by extracting the path from a URL
  * @param url - The full URL containing the link path (e.g., from clipboard)
  * @param eventType - The type of analytics event to track
+ * @param platform - The platform dimension (desktop, android, ios)
  */
 export async function trackLinkAnalyticsByUrl(
   url: string,
   eventType: AnalyticsEventType,
+  platform: Platform,
 ): Promise<void> {
   try {
     // Extract path from the URL
@@ -94,7 +128,7 @@ export async function trackLinkAnalyticsByUrl(
 
     if (!linkSnapshot.empty) {
       const linkDoc = linkSnapshot.docs[0];
-      await trackLinkAnalytics(linkDoc.id, eventType);
+      await trackLinkAnalytics(linkDoc.id, eventType, platform);
     } else {
       // Log error if path looks valid but no link found
       console.error(

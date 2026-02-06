@@ -4,16 +4,21 @@ import { findDynamicLinkByPath } from '../common/link-lookup';
 import {
   trackLinkAnalytics,
   AnalyticsEventType,
+  getPlatformFromUserAgent,
+  parsePlatformParam,
 } from '../analytics/track-analytics';
 
 /**
- * GET /v1_get_campaign?link=<percent-encoded-url>&first_campaign_open=<true|false>
+ * GET /v1_get_campaign?link=<percent-encoded-url>&first_campaign_open=<true|false>&platform=<ios|android|desktop>
  *
  * Returns the followLink of a dynamic link campaign based on the path
  * If no link parameter is provided, returns the default campaign (/default)
  * Tracks analytics based on first_campaign_open parameter
  *
- * @param req - Express request with optional query parameter 'link' and optional 'first_campaign_open'
+ * @param req - Express request with query parameters:
+ *   - link (optional): percent-encoded URL
+ *   - first_campaign_open (optional): 'true' or 'false'
+ *   - platform (optional): 'ios', 'android', or 'desktop' - if not provided, detected from user-agent
  * @param res - Express response
  *
  * Response:
@@ -83,13 +88,23 @@ export const private_v1_get_campaign = async function (
     const firstCampaignOpen = req.query.first_campaign_open as
       | string
       | undefined;
+    // Use explicit platform param if provided, otherwise detect from user-agent
+    const platformParam = req.query.platform as string | undefined;
+    const platform =
+      parsePlatformParam(platformParam) ??
+      getPlatformFromUserAgent(req.headers['user-agent']);
     if (firstCampaignOpen === 'true') {
       await trackLinkAnalytics(
         linkResult.id,
         AnalyticsEventType.APP_FIRST_OPEN_INTENT,
+        platform,
       );
     } else if (firstCampaignOpen === 'false') {
-      await trackLinkAnalytics(linkResult.id, AnalyticsEventType.APP_REOPEN);
+      await trackLinkAnalytics(
+        linkResult.id,
+        AnalyticsEventType.APP_REOPEN,
+        platform,
+      );
     }
     // If parameter is not provided or invalid, no analytics are tracked
 

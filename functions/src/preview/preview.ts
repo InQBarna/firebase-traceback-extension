@@ -6,6 +6,7 @@ import { Config } from '../config';
 import {
   trackLinkAnalytics,
   AnalyticsEventType,
+  getPlatformFromUserAgent,
 } from '../analytics/track-analytics';
 import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
 import { findDynamicLinkByPath } from '../common/link-lookup';
@@ -49,9 +50,11 @@ export const link_preview = async function (
 
     // Track the open before redirecting, only if not already tracked
     if (!currentUrl.searchParams.has(tb_prev_tracked)) {
+      const platform = getPlatformFromUserAgent(req.headers['user-agent']);
       await trackLinkAnalytics(
         linkResult.id,
         AnalyticsEventType.OPEN_LINK_PREVIEW,
+        platform,
       );
     }
 

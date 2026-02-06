@@ -78,7 +78,8 @@ describe('Campaign API - v1_get_campaign', () => {
 
       // 3. Verify response
       expect(response.body).toEqual({
-        result: 'https://example.com/products/summer-sale?utm_campaign=launch&utm_medium=email',
+        result:
+          'https://example.com/products/summer-sale?utm_campaign=launch&utm_medium=email',
       });
     });
 
@@ -228,8 +229,8 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.first_opens_intent).toBe(1);
-      expect(analyticsData?.reopens).toBe(0);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(1);
+      expect(analyticsData?.reopens?.desktop).toBe(0);
     });
 
     test('should track APP_REOPEN when first_campaign_open=false', async () => {
@@ -266,8 +267,8 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.reopens).toBe(1);
-      expect(analyticsData?.first_opens_intent).toBe(0);
+      expect(analyticsData?.reopens?.desktop).toBe(1);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(0);
     });
 
     test('should not track analytics when first_campaign_open is not provided', async () => {
@@ -339,7 +340,222 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.first_opens_intent).toBe(2);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(2);
+    });
+
+    test('should track iOS platform when user-agent contains iPhone', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/ios-ua-test',
+          title: 'iOS UA Test',
+          description: 'Test iOS user-agent',
+          followLink: 'https://example.com/ios',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/ios-ua-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      await request(HOST_BASE_URL)
+        .get(`/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true`)
+        .set(
+          'User-Agent',
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+        )
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      expect(analyticsData?.first_opens_intent?.ios).toBe(1);
+      expect(analyticsData?.first_opens_intent?.android).toBe(0);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(0);
+    });
+
+    test('should track Android platform when user-agent contains Android', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/android-ua-test',
+          title: 'Android UA Test',
+          description: 'Test Android user-agent',
+          followLink: 'https://example.com/android',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/android-ua-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      await request(HOST_BASE_URL)
+        .get(`/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true`)
+        .set(
+          'User-Agent',
+          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36',
+        )
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      expect(analyticsData?.first_opens_intent?.android).toBe(1);
+      expect(analyticsData?.first_opens_intent?.ios).toBe(0);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(0);
+    });
+
+    test('should track iOS platform when native app user-agent contains Darwin', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/darwin-ua-test',
+          title: 'Darwin UA Test',
+          description: 'Test native iOS user-agent',
+          followLink: 'https://example.com/darwin',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/darwin-ua-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      await request(HOST_BASE_URL)
+        .get(`/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true`)
+        .set('User-Agent', 'MyApp/1.0 CFNetwork/1474 Darwin/23.0.0')
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      expect(analyticsData?.first_opens_intent?.ios).toBe(1);
+      expect(analyticsData?.first_opens_intent?.android).toBe(0);
+    });
+
+    test('should track Android platform when native app user-agent contains okhttp', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/okhttp-ua-test',
+          title: 'OkHttp UA Test',
+          description: 'Test native Android user-agent',
+          followLink: 'https://example.com/okhttp',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/okhttp-ua-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      await request(HOST_BASE_URL)
+        .get(`/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true`)
+        .set('User-Agent', 'okhttp/4.12.0')
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      expect(analyticsData?.first_opens_intent?.android).toBe(1);
+      expect(analyticsData?.first_opens_intent?.ios).toBe(0);
+    });
+
+    test('should use platform query parameter over user-agent detection', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/platform-param-test',
+          title: 'Platform Param Test',
+          description: 'Test platform parameter',
+          followLink: 'https://example.com/platform',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/platform-param-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      // Send request with Android user-agent but ios platform parameter
+      await request(HOST_BASE_URL)
+        .get(
+          `/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true&platform=ios`,
+        )
+        .set(
+          'User-Agent',
+          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36',
+        )
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      // Should use platform param (ios), not user-agent (android)
+      expect(analyticsData?.first_opens_intent?.ios).toBe(1);
+      expect(analyticsData?.first_opens_intent?.android).toBe(0);
+    });
+
+    test('should fall back to user-agent detection when platform parameter is invalid', async () => {
+      const linkDoc = await db
+        .collection(TRACEBACK_COLLECTION)
+        .doc(DYNAMICLINKS_DOC)
+        .collection(RECORDS_COLLECTION)
+        .add({
+          path: '/invalid-platform-test',
+          title: 'Invalid Platform Test',
+          description: 'Test invalid platform parameter',
+          followLink: 'https://example.com/invalid',
+        });
+
+      const testUrl = `${HOST_BASE_URL}/invalid-platform-test`;
+      const encodedUrl = encodeURIComponent(testUrl);
+
+      // Send request with invalid platform parameter and Android user-agent
+      await request(HOST_BASE_URL)
+        .get(
+          `/v1_get_campaign?link=${encodedUrl}&first_campaign_open=true&platform=invalid_platform`,
+        )
+        .set(
+          'User-Agent',
+          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36',
+        )
+        .expect(200);
+
+      const today = new Date().toISOString().split('T')[0];
+      const analyticsDoc = await linkDoc
+        .collection('analytics')
+        .doc(today)
+        .get();
+
+      expect(analyticsDoc.exists).toBe(true);
+      const analyticsData = analyticsDoc.data();
+      // Should fall back to user-agent detection (android)
+      expect(analyticsData?.first_opens_intent?.android).toBe(1);
+      expect(analyticsData?.first_opens_intent?.ios).toBe(0);
+      expect(analyticsData?.first_opens_intent?.desktop).toBe(0);
     });
   });
 
@@ -491,7 +707,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.open_link_preview).toBe(1);
+      expect(analyticsData?.open_link_preview?.desktop).toBe(1);
     });
 
     test('should track as many analytics as openings of the dynamic link (2)', async () => {
@@ -520,7 +736,7 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.open_link_preview).toBe(2);
+      expect(analyticsData?.open_link_preview?.desktop).toBe(2);
     });
 
     test('should track 1 click and 1 redirect when opening dynamic link and calling preinstall link creation', async () => {
@@ -565,8 +781,8 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.open_link_preview).toBe(1);
-      expect(analyticsData?.redirects).toBe(1);
+      expect(analyticsData?.open_link_preview?.desktop).toBe(1);
+      expect(analyticsData?.redirects?.desktop).toBe(1);
     });
 
     test('should track 1 click, 1 redirect and 1 install when opening dynamic link, calling preinstall and calling post-install', async () => {
@@ -630,9 +846,9 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.open_link_preview).toBe(1);
-      expect(analyticsData?.redirects).toBe(1);
-      expect(analyticsData?.first_opens_install).toBe(1);
+      expect(analyticsData?.open_link_preview?.desktop).toBe(1);
+      expect(analyticsData?.redirects?.desktop).toBe(1);
+      expect(analyticsData?.first_opens_install?.desktop).toBe(1);
     });
   });
 });
