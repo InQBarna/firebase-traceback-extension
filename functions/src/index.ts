@@ -19,6 +19,7 @@ import {
   private_v1_campaigns,
   private_v1_campaign_debug,
 } from './campaigns/campaign-debug';
+import { private_v1_campaign_analytics } from './analytics/campaign-analytics';
 import { validateApiKey } from './middleware/api-key-auth';
 import { getSiteId } from './common/site-utils';
 
@@ -126,6 +127,9 @@ app.get('/v1_campaigns', validateApiKey, private_v1_campaigns);
 
 // ## Campaign debug (HTML for QA, secured with API key)
 app.get('/v1_campaign_debug', validateApiKey, private_v1_campaign_debug);
+
+// ## Campaign analytics (JSON, secured with API key)
+app.get('/v1_campaign_analytics', validateApiKey, private_v1_campaign_analytics);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {

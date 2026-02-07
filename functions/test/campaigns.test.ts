@@ -799,9 +799,14 @@ describe('Campaign API - v1_get_campaign', () => {
         });
 
       const linkUrl = `${HOST_BASE_URL}/feature`;
+      const iosSafariUA =
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 
-      // 2. Request to the host URL /feature (click)
-      await request(HOST_BASE_URL).get('/feature').redirects(0);
+      // 2. Request to the host URL /feature (click) with iOS Safari user-agent
+      await request(HOST_BASE_URL)
+        .get('/feature')
+        .set('User-Agent', iosSafariUA)
+        .redirects(0);
 
       // 3. Call preinstall link creation with clipboard containing the link (redirect)
       await request(HOST_BASE_URL)
@@ -810,11 +815,11 @@ describe('Campaign API - v1_get_campaign', () => {
           language: 'en-US',
           languages: ['en-US'],
           timezone: 'America/New_York',
-          screenWidth: 1920,
-          screenHeight: 1080,
-          devicePixelRatio: 2,
-          platform: 'MacIntel',
-          userAgent: 'Mozilla/5.0',
+          screenWidth: 390,
+          screenHeight: 844,
+          devicePixelRatio: 3,
+          platform: 'iPhone',
+          userAgent: iosSafariUA,
           clipboard: linkUrl,
         });
 
@@ -824,20 +829,20 @@ describe('Campaign API - v1_get_campaign', () => {
         .send({
           appInstallationTime: Date.now(),
           bundleId: 'com.example.app',
-          osVersion: '14.0',
+          osVersion: '17.0',
           sdkVersion: 'ios/0.3.5',
           uniqueMatchLinkToCheck: linkUrl,
           device: {
             deviceModelName: 'iPhone14,5',
             languageCode: 'en-US',
             languageCodeRaw: 'en-US',
-            screenResolutionWidth: 1920,
-            screenResolutionHeight: 1080,
+            screenResolutionWidth: 390,
+            screenResolutionHeight: 844,
             timezone: 'America/New_York',
           },
         });
 
-      // 5. Verify analytics shows open_link_preview: 1, redirects: 1, first_opens_install: 1
+      // 5. Verify analytics shows ios platform for all events
       const today = new Date().toISOString().split('T')[0];
       const analyticsDoc = await linkDoc
         .collection('analytics')
@@ -846,9 +851,9 @@ describe('Campaign API - v1_get_campaign', () => {
 
       expect(analyticsDoc.exists).toBe(true);
       const analyticsData = analyticsDoc.data();
-      expect(analyticsData?.open_link_preview?.desktop).toBe(1);
-      expect(analyticsData?.redirects?.desktop).toBe(1);
-      expect(analyticsData?.first_opens_install?.desktop).toBe(1);
+      expect(analyticsData?.open_link_preview?.ios).toBe(1);
+      expect(analyticsData?.redirects?.ios).toBe(1);
+      expect(analyticsData?.first_opens_install?.ios).toBe(1);
     });
   });
 });

@@ -99,6 +99,104 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1_campaign_analytics:
+    get:
+      tags:
+        - Campaign Tracking
+      summary: Get campaign analytics
+      description: |
+        Returns per-day analytics for a campaign link over a configurable date range.
+        Requires API key authentication via header or query parameter.
+        Days with no analytics data are omitted from the response.
+      operationId: getCampaignAnalytics
+      security:
+        - ApiKeyHeader: []
+        - ApiKeyQuery: []
+      parameters:
+        - name: campaignPath
+          in: query
+          description: Campaign path (must start with /)
+          required: true
+          schema:
+            type: string
+            example: "/summer-promo"
+        - name: durationDays
+          in: query
+          description: Number of days to look back (1-365)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 7
+            example: 7
+        - name: endDate
+          in: query
+          description: End date in YYYY-MM-DD format (defaults to today)
+          required: false
+          schema:
+            type: string
+            format: date
+            example: "2025-01-14"
+        - name: apiKey
+          in: query
+          description: API key (alternative to x-traceback-api-key header)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Campaign analytics returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignAnalyticsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingPath:
+                  value:
+                    error: "Invalid parameters"
+                    message: "campaignPath is required"
+                invalidPath:
+                  value:
+                    error: "Invalid parameters"
+                    message: "campaignPath must start with /"
+        '401':
+          description: API key not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "API key required"
+        '403':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid API key"
+        '404':
+          description: Campaign not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Campaign not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /v1_preinstall_save_link:
     post:
       tags:
@@ -484,6 +582,60 @@ components:
           nullable: true
           description: UTM source parameter (reserved for future use)
 
+    CampaignAnalyticsResponse:
+      type: object
+      properties:
+        campaignPath:
+          type: string
+          description: The campaign path queried
+          example: "/summer-promo"
+        durationDays:
+          type: integer
+          description: Number of days in the date range
+          example: 7
+        startDate:
+          type: string
+          format: date
+          description: Start date of the range (inclusive)
+          example: "2025-01-08"
+        endDate:
+          type: string
+          format: date
+          description: End date of the range (inclusive)
+          example: "2025-01-14"
+        analytics:
+          type: object
+          description: Per-day analytics keyed by date (YYYY-MM-DD). Days with no data are omitted.
+          additionalProperties:
+            $ref: '#/components/schemas/DailyAnalytics'
+
+    DailyAnalytics:
+      type: object
+      properties:
+        open_link_preview:
+          $ref: '#/components/schemas/PlatformCounts'
+        redirects:
+          $ref: '#/components/schemas/PlatformCounts'
+        first_opens_intent:
+          $ref: '#/components/schemas/PlatformCounts'
+        first_opens_install:
+          $ref: '#/components/schemas/PlatformCounts'
+        reopens:
+          $ref: '#/components/schemas/PlatformCounts'
+
+    PlatformCounts:
+      type: object
+      properties:
+        desktop:
+          type: integer
+          example: 5
+        android:
+          type: integer
+          example: 3
+        ios:
+          type: integer
+          example: 2
+
     Error:
       type: object
       properties:
@@ -491,3 +643,15 @@ components:
           type: string
           description: Error message
           example: "Internal server error"
+
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: x-traceback-api-key
+      description: API key passed via request header
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: apiKey
+      description: API key passed as query parameter
