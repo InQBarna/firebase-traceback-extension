@@ -189,29 +189,40 @@ async function getDynamicLinkHTMLResponse(
   linkInfo: LinkInfo,
   config: Config,
 ): Promise<string> {
+  const thumbnail =
+    linkInfo.image.length > 0
+      ? linkInfo.image
+      : (linkInfo.appStoreInfo?.artworkUrl100 ?? '');
+  const appIcon = linkInfo.appStoreInfo?.artworkUrl100 ?? '';
+
+  const pageData = {
+    appName: linkInfo.appStoreInfo?.trackName ?? '',
+    appIcon,
+    appDescription:
+      linkInfo.appStoreInfo?.description.replace(/\n/g, '<br/>') ?? '',
+    title: linkInfo.title,
+    description: linkInfo.description,
+    thumbnail,
+    appStoreID: linkInfo.appStoreInfo?.trackId ?? '',
+    androidBundleID: config.androidBundleID,
+    androidScheme: (config.androidScheme ?? '').toString(),
+    appleAffiliateToken: linkInfo.appleAffiliateToken ?? '',
+    appleCampaignText: linkInfo.appleCampaignText ?? '',
+    appleMediaType: linkInfo.appleMediaType ?? '',
+    appleProviderId: linkInfo.appleProviderId ?? '',
+    followLink: linkInfo.followLink?.toString() ?? '',
+  };
+
   const templatePath = path.join(__dirname, '../assets/html/index.html');
-  return fs
-    .readFileSync(templatePath, { encoding: 'utf-8' })
+  const html = fs.readFileSync(templatePath, { encoding: 'utf-8' });
+
+  return html
     .replaceAll('{{title}}', linkInfo.title)
     .replaceAll('{{description}}', linkInfo.description)
-    .replaceAll('{{appStoreID}}', linkInfo.appStoreInfo?.trackId ?? '')
-    .replaceAll('{{androidBundleID}}', config.androidBundleID)
-    .replaceAll('{{androidScheme}}', (config.androidScheme ?? '').toString())
-    .replaceAll('{{followLink}}', linkInfo.followLink?.toString() ?? '')
-    .replaceAll(
-      '{{thumbnail}}',
-      linkInfo.image.length > 0
-        ? linkInfo.image
-        : (linkInfo.appStoreInfo?.artworkUrl100 ?? ''),
-    )
-    .replaceAll('{{app_icon}}', linkInfo.appStoreInfo?.artworkUrl100 ?? '')
-    .replaceAll('{{app_name}}', linkInfo.appStoreInfo?.trackName ?? '')
-    .replaceAll(
-      '{{app_description}}',
-      linkInfo.appStoreInfo?.description.replace(/\n/g, '<br/>') ?? '',
-    )
-    .replaceAll('{{appleAffiliateToken}}', linkInfo.appleAffiliateToken ?? '')
-    .replaceAll('{{appleCampaignText}}', linkInfo.appleCampaignText ?? '')
-    .replaceAll('{{appleMediaType}}', linkInfo.appleMediaType ?? '')
-    .replaceAll('{{appleProviderId}}', linkInfo.appleProviderId ?? '');
+    .replaceAll('{{thumbnail}}', thumbnail)
+    .replaceAll('{{app_icon}}', appIcon)
+    .replace(
+      '<!-- __DATA__ -->',
+      `<script>window.__DATA__=${JSON.stringify(pageData)}</script>`,
+    );
 }

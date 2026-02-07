@@ -16,351 +16,40 @@
     <meta property="og:image" content="{{thumbnail}}" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="en_US" />
-    
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: system-ui, sans-serif;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        background: #fafafa;
-      }
-    
-      div > div > div {
-        text-align: center;
-        padding: 20px;
-      }
-    
-      img {
-        width: 64px;
-        height: 64px;
-        object-fit: cover;
-        margin-bottom: 16px;
-        border-radius: 12px; /* 🔵 Rounded corners for the app icon */
-      }
-    
-      span:first-of-type {
-        display: block;
-        font-size: 20px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #202124;
-      }
-    
-      span:last-of-type {
-        display: block;
-        font-size: 14px;
-        color: #5f6368;
-        margin-bottom: 24px;
-        overflow: hidden;
-        display: -webkit-box;
-        line-clamp: 10;
-        -webkit-line-clamp: 10;
-        -webkit-box-orient: vertical;
-      }
-    
-      /* 🔵 Group checkbox + label inline */
-      #clipboardCheckbox {
-        margin-right: 8px;
-        vertical-align: middle;
-      }
-    
-      label {
-        font-size: 12px;
-        color: #5f6368;
-        display: inline-block;
-        vertical-align: middle;
-        margin-bottom: 24px;
-        text-align: left;
-      }
-    
-      #installLink {
-        background-color: #1a73e8;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 16px;
-        cursor: pointer;
-        user-select: none;
-        display: inline-block;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        transition: background-color 0.2s;
-      }
-
-      #installLink:hover {
-        background-color: #1765c1;
-      }
-
-      #checkboxDiv {
-        display: flex;
-        gap: 8px;
-        justify-content: center;
-        font-size: 12px;
-        color: #5f6368;
-        margin-bottom: 24px;
-        text-align: left;
-      }
-
-      #storeButtons {
-        display: none;
-        flex-direction: column;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .store-button {
-        cursor: pointer;
-        transition: opacity 0.2s;
-        height: 60px;
-        width: auto;
-      }
-
-      .store-button:hover {
-        opacity: 0.8;
-      }
-
-      .desktop-only {
-        display: none;
-      }
-
-      #redirectMessage {
-        display: none;
-        font-size: 14px;
-        color: #5f6368;
-        margin-bottom: 16px;
-        text-align: center;
-      }
-
-    </style>
-    
+    <script type="module" crossorigin>(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return;for(const n of document.querySelectorAll('link[rel="modulepreload"]'))a(n);new MutationObserver(n=>{for(const i of n)if(i.type==="childList")for(const s of i.addedNodes)s.tagName==="LINK"&&s.rel==="modulepreload"&&a(s)}).observe(document,{childList:!0,subtree:!0});function o(n){const i={};return n.integrity&&(i.integrity=n.integrity),n.referrerPolicy&&(i.referrerPolicy=n.referrerPolicy),n.crossOrigin==="use-credentials"?i.credentials="include":n.crossOrigin==="anonymous"?i.credentials="omit":i.credentials="same-origin",i}function a(n){if(n.ep)return;n.ep=!0;const i=o(n);fetch(n.href,i)}})();function D(){var e;const t=navigator;return{language:navigator.language||null,languages:navigator.languages||null,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||null,screenWidth:window.screen.width,screenHeight:window.screen.height,devicePixelRatio:window.devicePixelRatio||null,platform:navigator.platform||null,userAgent:navigator.userAgent||null,connectionType:((e=t.connection)==null?void 0:e.effectiveType)||null,hardwareConcurrency:navigator.hardwareConcurrency||null,memory:t.deviceMemory||null,colorDepth:window.screen.colorDepth||null}}function B(t){var o;const e=new URL(window.location.href);return e.searchParams.set("_lang",t.language||""),e.searchParams.set("_langs",((o=t.languages)==null?void 0:o.join(","))||""),e.searchParams.set("_tz",t.timezone||""),e.searchParams.set("_res",`${t.screenWidth}x${t.screenHeight}`),e.searchParams.set("_dpr",String(t.devicePixelRatio||"")),e.searchParams.set("_plt",t.platform||""),e.toString()}function E(t,e){return{...t,clipboard:e}}function y(){const t=navigator.userAgent;return/iPhone|iPad|iPod/i.test(t)?"ios":/Android/i.test(t)?"android":"desktop"}function x(){return y()==="ios"}function S(){return y()==="android"}function A(){return y()==="desktop"}function C(t){const e=document.createElement("input");e.value=t,e.style.position="fixed",e.style.opacity="0.0001",document.body.appendChild(e),e.focus(),e.select(),document.execCommand("copy"),document.body.removeChild(e)}function b(t,e){const o=`https://apps.apple.com/us/app/${t}`,a=new URLSearchParams;e.affiliateToken&&a.set("at",e.affiliateToken),e.campaignText&&a.set("ct",e.campaignText),e.mediaType&&a.set("mt",e.mediaType),e.providerId&&a.set("pt",e.providerId);const n=a.toString();return n?`${o}?${n}`:o}function g(t,e){const o=`https://play.google.com/store/apps/details?id=${t}`;return e?`${o}&referrer=${encodeURIComponent(e)}`:o}function U(t,e,o){const a=encodeURIComponent(o);return`intent:#Intent;scheme=${t};package=${e};S.browser_fallback_url=${a};end`}async function L(t){await fetch("/v1_preinstall_save_link",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(t)})}function R(t,e){const o=new URL(t.origin+t.pathname);return o.searchParams.set("link",e),["utm_source","utm_medium","utm_campaign","utm_term","utm_content"].forEach(n=>{const i=t.searchParams.get(n);i&&o.searchParams.set(n,i)}),o.toString()}async function O(t,e){const o=new URL(window.location.href),a=o.searchParams.get("link");if(!a){console.log("No link parameter found - staying on page");return}const n=document.getElementById("clipboardCheckbox");if(n!=null&&n.checked&&C(t),await L(e),x())window.location.href=b(window.__DATA__.appStoreID,{affiliateToken:window.__DATA__.appleAffiliateToken,campaignText:window.__DATA__.appleCampaignText,mediaType:window.__DATA__.appleMediaType,providerId:window.__DATA__.appleProviderId});else if(S())if(window.__DATA__.androidScheme!==""){const i=g(window.__DATA__.androidBundleID);window.location.href=U(window.__DATA__.androidScheme,window.__DATA__.androidBundleID,i)}else{const i=R(o,a);window.location.href=g(window.__DATA__.androidBundleID,i)}else console.log("Not iOS or Android detected - redirecting to destination"),window.location.replace(a)}const r=window.__DATA__;document.getElementById("appIcon").setAttribute("src",r.appIcon);document.getElementById("appName").textContent=r.appName;document.getElementById("appDescription").innerHTML=r.appDescription;const h=document.getElementById("appDescription"),d=document.getElementById("linkTitle"),u=document.getElementById("linkDescription"),w=document.getElementById("thumbnail");(r.title||r.description)&&(h&&(h.style.display="none"),r.title&&d&&(d.textContent=r.title,d.style.display="block"),r.description&&u&&(u.textContent=r.description,u.style.display="-webkit-box"));r.thumbnail&&(w.src=r.thumbnail,w.style.display="block");const v=D(),P=B(v),$=E(v,P),l=document.getElementById("checkboxDiv"),_=document.getElementById("redirectMessage"),T=document.getElementById("mobileButton"),I=document.getElementById("storeButtons"),c=document.getElementById("installLink"),p=document.getElementById("appStoreButton"),m=document.getElementById("playStoreButton"),N=new URL(window.location.href),k=N.searchParams.get("link");A()&&(k?(l&&(l.style.display="none"),_&&(_.style.display="block")):(T&&(T.style.display="none"),l&&(l.style.display="none"),I&&(I.style.display="flex")));const f=()=>O(P,$);A()?k?(c==null||c.addEventListener("click",f),setTimeout(f,1500)):(p==null||p.addEventListener("click",()=>{window.location.href=b(r.appStoreID,{affiliateToken:r.appleAffiliateToken,campaignText:r.appleCampaignText,mediaType:r.appleMediaType,providerId:r.appleProviderId})}),m==null||m.addEventListener("click",()=>{window.location.href=g(r.androidBundleID)})):c==null||c.addEventListener("click",f);</script>
+    <style rel="stylesheet" crossorigin>body{margin:0;padding:0;font-family:Inter,system-ui,sans-serif;background:#f9fafb}img{width:80px;height:80px;object-fit:cover;border-radius:10.667px}body{display:flex;justify-content:center;align-items:center;min-height:100vh}.card{background:#fff;border-radius:16px;box-shadow:0 0 4px #0000001a;padding:24px 16px;width:361px;max-width:calc(100vw - 32px);display:flex;flex-direction:column;align-items:center;gap:24px;box-sizing:border-box}.app-icon{flex-shrink:0}.text-block{display:flex;flex-direction:column;gap:4px;width:100%;text-align:center}.app-name{display:block;font-size:20px;font-weight:600;line-height:28px;color:#000}.app-description{display:block;font-size:16px;font-weight:400;line-height:24px;color:#0009;overflow:hidden;display:-webkit-box;line-clamp:5;-webkit-line-clamp:10;-webkit-box-orient:vertical}.link-title{display:none;font-size:16px;font-weight:400;line-height:24px;color:#0009}.thumbnail{display:none;width:100%;height:auto;aspect-ratio:300 / 200;border-radius:8px;object-fit:cover}.link-description{font-size:16px;font-weight:400;line-height:24px;color:#0009;text-align:center;margin:0;width:100%;overflow:hidden;display:none;-webkit-box-orient:vertical;line-clamp:10;-webkit-line-clamp:10}#checkboxDiv{display:flex;gap:8px;align-items:flex-start;padding:16px;border:.5px solid rgba(0,0,0,.2);border-radius:8px;width:100%;box-sizing:border-box;font-size:14px;line-height:20px;color:#0009}#storeButtons{display:none;flex-direction:column;gap:16px;align-items:center;width:100%}.store-buttons-row{display:flex;gap:12px;justify-content:center}#mobileButton{text-align:center}#redirectMessage{display:none;font-size:14px;line-height:20px;color:#0009;text-align:center}#clipboardCheckbox{flex-shrink:0;margin-top:2px}label{font-size:14px;line-height:20px;color:#0009}#installLink{background-color:#2d57e1;color:#fff;padding:8px 24px;border-radius:8px;font-weight:500;font-size:16px;line-height:24px;cursor:pointer;-webkit-user-select:none;user-select:none;display:inline-block;text-align:center;transition:background-color .2s}#installLink:hover{background-color:#2448c0}.store-button{cursor:pointer;transition:opacity .2s;height:40px;width:120px;border-radius:6px}.store-button:hover{opacity:.8}#storeButtons p{color:#0009;font-size:14px;line-height:28px;margin:0}.desktop-only{display:none}@media(min-width:768px){.card{width:588px;padding:24px}.app-icon{width:120px;height:120px;border-radius:16px}.app-name{font-size:24px;line-height:36px}.app-description,.link-title,.link-description{font-size:20px;line-height:28px}#storeButtons p{font-size:16px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}.store-buttons-row{gap:16px}}</style>
   </head>
 
   <body>
-    <div>
-      <div>
-        <div>
-          <span>
-            <img src="{{app_icon}}" aria-hidden="true" role="none">
-            <br/>
-            {{app_name}}
-          </span>
-          <span>
-            {{app_description}}
-          </span>
-        </div>
-        <div>
-          <div id="checkboxDiv">
-            <input id="clipboardCheckbox" type="checkbox" checked="">
-            <label for="clipboardCheckbox">
-              Save my place in the app. A link will be copied to continue to this page.
-            </label>
-          </div>
-          <div id="redirectMessage">
-            You're being redirected... Tap OPEN if this fails
-          </div>
-          <div id="mobileButton">
-            <div id="installLink">
-            OPEN
-            </div>
-          </div>
-          <div class="desktop-only" id="storeButtons">
-            <p style="color: #5f6368; font-size: 14px; margin-bottom: 8px;">Download the app:</p>
-            <img id="appStoreButton" class="store-button" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1234567890" alt="Download on the App Store">
-            <img id="playStoreButton" class="store-button" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play">
-          </div>
+    <!-- __DATA__ -->
+    <div class="card">
+      <img class="thumbnail" id="thumbnail">
+      <img class="app-icon" id="appIcon">
+      <div class="text-block">
+        <span class="app-name" id="appName"></span>
+        <span class="app-description" id="appDescription"></span>
+        <span class="link-title" id="linkTitle"></span>
+      </div>
+      <p class="link-description" id="linkDescription"></p>
+      <div id="checkboxDiv">
+        <input id="clipboardCheckbox" type="checkbox" checked="">
+        <label for="clipboardCheckbox">
+          Save my place in the app. A link will be copied to continue to this page.
+        </label>
+      </div>
+      <div id="redirectMessage">
+        You're being redirected... Tap Open if this fails
+      </div>
+      <div id="mobileButton">
+        <div id="installLink">Open</div>
+      </div>
+      <div class="desktop-only" id="storeButtons">
+        <p>Download the app</p>
+        <div class="store-buttons-row">
+          <img id="playStoreButton" class="store-button" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play">
+          <img id="appStoreButton" class="store-button" src="https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us?size=250x83&releaseDate=1234567890" alt="Download on the App Store">
         </div>
       </div>
     </div>
   </body>
-
-  <script type="module">
-
-    function buildAppStoreUrl(baseAppStoreId) {
-      const baseUrl = `https://apps.apple.com/us/app/${baseAppStoreId}`;
-      const params = new URLSearchParams();
-
-      const affiliateToken = '{{appleAffiliateToken}}';
-      const campaignText = '{{appleCampaignText}}';
-      const mediaType = '{{appleMediaType}}';
-      const providerId = '{{appleProviderId}}';
-
-      if (affiliateToken) params.set('at', affiliateToken);
-      if (campaignText) params.set('ct', campaignText);
-      if (mediaType) params.set('mt', mediaType);
-      if (providerId) params.set('pt', providerId);
-
-      const queryString = params.toString();
-      return queryString ? `${baseUrl}?${queryString}` : baseUrl;
-    }
-
-    function copyToClipboard(urlWithHeuristics) {
-      const input = document.createElement('input');
-      input.value = urlWithHeuristics;
-      input.style.position = 'fixed';
-      input.style.opacity = '0.0001';
-      document.body.appendChild(input);
-      input.focus();
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-    }
-
-    function generateURLWithHeuristics(heuristics) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('_lang', heuristics.language);
-      url.searchParams.set('_langs', heuristics.languages);
-      url.searchParams.set('_tz', heuristics.timezone);
-      url.searchParams.set('_res', `${heuristics.screenWidth}x${heuristics.screenHeight}`);
-      url.searchParams.set('_dpr', heuristics.devicePixelRatio);
-      url.searchParams.set('_plt', heuristics.platform);
-      // url.searchParams.set('_ua', heuristics.userAgent);
-      return url.toString()
-    }
-
-    const heuristics = {
-      language: navigator.language || null,
-      languages: navigator.languages || null,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
-      devicePixelRatio: window.devicePixelRatio || null,
-      platform: navigator.platform || null,
-      userAgent: navigator.userAgent || null,
-      connectionType: navigator.connection?.effectiveType || null,
-      hardwareConcurrency: navigator.hardwareConcurrency || null,
-      memory: navigator.deviceMemory || null,
-      colorDepth: window.screen.colorDepth || null
-    };
-
-    const urlWithHeuristics = generateURLWithHeuristics(heuristics);
-    // document.getElementById("installLink").href = urlWithHeuristics;
-    const heuristicsWithClipboard = {
-      ...heuristics,
-      clipboard: urlWithHeuristics
-    };
-
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const isDesktop = !isIOS && !isAndroid;
-
-    // Check if we have a link parameter
-    const currentURL = new URL(window.location.href);
-    const originalLinkParam = currentURL.searchParams.get("link");
-
-    // Show appropriate buttons based on platform
-    if (isDesktop) {
-      // For desktop, show OPEN button if there's a link to redirect to
-      if (originalLinkParam) {
-        // Keep the OPEN button visible for desktop
-        document.getElementById('checkboxDiv').style.display = 'none';
-        // Show redirect message immediately
-        document.getElementById('redirectMessage').style.display = 'block';
-      } else {
-        // Only show store buttons if there's NO link to redirect to
-        document.getElementById('mobileButton').style.display = 'none';
-        document.getElementById('checkboxDiv').style.display = 'none';
-        document.getElementById('storeButtons').style.display = 'flex';
-      }
-    }
-
-    async function handleRedirect() {
-      // example: http://127.0.0.1:5002/xxx?_lang=en-US&_langs=en-US&_tz=Europe%2FMadrid&_res=1710x1107&_dpr=2&_plt=MacIntel
-
-      const currentURL = new URL(window.location.href);
-      const originalLinkParam = currentURL.searchParams.get("link");
-
-      // Don't redirect if there's no link parameter
-      if (!originalLinkParam) {
-        console.log('No link parameter found - staying on page');
-        return;
-      }
-
-      const checkbox = document.getElementById("clipboardCheckbox");
-      if (checkbox?.checked) {
-        copyToClipboard(urlWithHeuristics);
-      }
-
-      await fetch('/v1_preinstall_save_link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(heuristicsWithClipboard)
-      });
-
-      // Create filtered URL with only 'link' param for referrer
-      const filteredURL = new URL(currentURL.origin + currentURL.pathname);
-      if (originalLinkParam) {
-        filteredURL.searchParams.set("link", originalLinkParam);
-      }
-
-      //  This followLink behaviour was meant when no app wants to e opened, kept
-      //   so in the future we want this behaviour
-      // if ('{{followLink}}' !== '' && '{{followLink}}' !== 'about:blank') {
-      //   window.location.replace('{{followLink}}');
-      // } else
-      if (isIOS) {
-        window.location.href = buildAppStoreUrl('{{appStoreID}}');
-      } else if (isAndroid) {
-        if ('{{androidScheme}}' != '') {
-          const fallbackUrl = encodeURIComponent(
-            'https://play.google.com/store/apps/details?id={{androidBundleID}}',
-          );
-          window.location.href = `intent:#Intent;scheme={{androidScheme}};package={{androidBundleID}};S.browser_fallback_url=${fallbackUrl};end`;
-        } else {
-          // Add UTM parameters to filteredURL
-          const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-          utmParams.forEach(param => {
-            const value = currentURL.searchParams.get(param);
-            if (value) {
-              filteredURL.searchParams.set(param, value);
-            }
-          });
-
-          const playStoreLocation =
-            'https://play.google.com/store/apps/details?id={{androidBundleID}}&referrer=' +
-            encodeURIComponent(filteredURL.toString());
-          window.location.href = playStoreLocation;
-        }
-      } else {
-        console.log('Not iOs or android detected - redirecting to destination')
-        // Use location.replace() instead of location.href to preserve referrer
-        window.location.replace(originalLinkParam);
-      }
-    }
-
-    // Setup event listeners based on platform
-    if (isDesktop) {
-      if (originalLinkParam) {
-        // Show OPEN button and set up auto-redirect after delay
-        const installLink = document.getElementById("installLink");
-
-        // Add click handler for manual redirect
-        installLink.addEventListener("click", handleRedirect);
-
-        // Auto-redirect after 1.5 seconds to give GA4 time to track the page view
-        setTimeout(() => {
-          handleRedirect();
-        }, 1500);
-      } else {
-        // Show store buttons for desktop users (no link to redirect to)
-        document.getElementById("appStoreButton").addEventListener("click", () => {
-          window.location.href = buildAppStoreUrl('{{appStoreID}}');
-        });
-
-        document.getElementById("playStoreButton").addEventListener("click", () => {
-          window.location.href = 'https://play.google.com/store/apps/details?id={{androidBundleID}}';
-        });
-      }
-    } else {
-      // Wait for user click on mobile
-      document.getElementById("installLink").addEventListener("click", handleRedirect);
-    }
-  </script>
-  
-  </html>
+</html>
