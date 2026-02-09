@@ -197,6 +197,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1_create_campaign:
+    post:
+      tags:
+        - Campaign Tracking
+      summary: Create a new campaign link
+      description: |
+        Creates a new campaign link (dynamic link) in the database.
+        The path must be unique across all existing campaigns.
+        Requires API key authentication via header or query parameter.
+      operationId: createCampaign
+      security:
+        - ApiKeyHeader: []
+        - ApiKeyQuery: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        '201':
+          description: Campaign created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCampaignResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Validation error"
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+                        path:
+                          type: array
+                          items:
+                            type: string
+        '401':
+          description: API key not provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "API key required"
+        '403':
+          description: Invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Invalid API key"
+        '409':
+          description: Campaign with this path already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "A campaign with this path already exists"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /v1_preinstall_save_link:
     post:
       tags:
@@ -635,6 +713,105 @@ components:
         ios:
           type: integer
           example: 2
+
+    CreateCampaignRequest:
+      type: object
+      required:
+        - path
+      properties:
+        path:
+          type: string
+          description: Campaign path (must start with /, must not be just "/")
+          example: "/summer-promo"
+        title:
+          type: string
+          description: Campaign title
+          example: "Summer Promo"
+        description:
+          type: string
+          description: Campaign description
+          example: "Summer promotional campaign"
+        image:
+          type: string
+          format: uri
+          description: Image URL for campaign preview
+          example: "https://example.com/image.png"
+        followLink:
+          type: string
+          format: uri
+          description: URL to redirect to when campaign link is opened
+          example: "https://example.com/products/summer"
+        expires:
+          type: string
+          format: date-time
+          description: Expiration date in ISO 8601 format
+          example: "2025-12-31T23:59:59Z"
+        appleAffiliateToken:
+          type: string
+          description: Apple affiliate token (maps to 'at' App Store param)
+          example: "affiliate123"
+        appleCampaignText:
+          type: string
+          description: Apple campaign text (maps to 'ct' App Store param)
+          example: "summer_campaign"
+        appleMediaType:
+          type: string
+          description: Apple media type (maps to 'mt' App Store param)
+          example: "8"
+        appleProviderId:
+          type: string
+          description: Apple provider ID (maps to 'pt' App Store param)
+          example: "provider456"
+
+    CreateCampaignResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Firestore document ID
+          example: "abc123def456"
+        path:
+          type: string
+          description: Campaign path
+          example: "/summer-promo"
+        title:
+          type: string
+          description: Campaign title
+          example: "Summer Promo"
+        description:
+          type: string
+          description: Campaign description
+          example: "Summer promotional campaign"
+        image:
+          type: string
+          format: uri
+          description: Image URL
+          example: "https://example.com/image.png"
+        followLink:
+          type: string
+          format: uri
+          description: Follow link URL
+          example: "https://example.com/products/summer"
+        expires:
+          type: string
+          format: date-time
+          description: Expiration date as ISO string
+          example: "2025-12-31T23:59:59.000Z"
+        campaignUrl:
+          type: string
+          format: uri
+          description: Full campaign URL (domain + path)
+          example: "https://your-project.web.app/summer-promo"
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp as ISO string
+          example: "2025-01-15T10:30:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp as ISO string
+          example: "2025-01-15T10:30:00.000Z"
 
     Error:
       type: object

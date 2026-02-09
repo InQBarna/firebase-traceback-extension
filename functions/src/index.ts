@@ -15,6 +15,7 @@ import { private_doctor } from './doctor';
 import { private_retry_initialize } from './retry-initialize';
 import { privateInitialize } from './lifecycle/initialize';
 import { private_v1_get_campaign } from './campaigns/campaigns';
+import { private_v1_create_campaign } from './campaigns/campaign-create';
 import {
   private_v1_campaigns,
   private_v1_campaign_debug,
@@ -128,8 +129,15 @@ app.get('/v1_campaigns', validateApiKey, private_v1_campaigns);
 // ## Campaign debug (HTML for QA, secured with API key)
 app.get('/v1_campaign_debug', validateApiKey, private_v1_campaign_debug);
 
+// ## Create campaign (JSON, secured with API key)
+app.post('/v1_create_campaign', validateApiKey, private_v1_create_campaign);
+
 // ## Campaign analytics (JSON, secured with API key)
-app.get('/v1_campaign_analytics', validateApiKey, private_v1_campaign_analytics);
+app.get(
+  '/v1_campaign_analytics',
+  validateApiKey,
+  private_v1_campaign_analytics,
+);
 
 // ## Handle all other routes
 app.use('*', async (req, res) => {

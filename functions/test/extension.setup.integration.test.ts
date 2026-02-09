@@ -15,9 +15,9 @@ const HOST_BASE_URL = getTestApiUrl();
 
 describe('Extension Setup - Associated Domain', () => {
   test('should return apple-app-site-association file', async () => {
-    const associatedResponse = await request(
-      'https://iqbdemocms-traceback.web.app',
-    ).get('/.well-known/apple-app-site-association');
+    const associatedResponse = await request(HOST_BASE_URL).get(
+      '/.well-known/apple-app-site-association',
+    );
 
     expect(associatedResponse.statusCode).toBe(200);
     expect(associatedResponse.body.applinks.details[0].appID).toBe(

@@ -8,10 +8,10 @@ export default interface DynamicLink {
   image?: string;
   followLink?: string;
   expires?: Timestamp;
-  appleAffiliateToken?: string;   // Maps to 'at' param
-  appleCampaignText?: string;     // Maps to 'ct' param
-  appleMediaType?: string;        // Maps to 'mt' param
-  appleProviderId?: string;       // Maps to 'pt' param
+  appleAffiliateToken?: string; // Maps to 'at' param
+  appleCampaignText?: string; // Maps to 'ct' param
+  appleMediaType?: string; // Maps to 'mt' param
+  appleProviderId?: string; // Maps to 'pt' param
 }
 
 export interface APIKey {
