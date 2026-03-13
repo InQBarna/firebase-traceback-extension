@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import {
   TRACEBACK_COLLECTION,
@@ -59,7 +59,7 @@ export const private_v1_campaigns = async function (
       campaigns: campaigns,
     });
   } catch (error) {
-    logger.error('Error in v1_campaigns:', error);
+    functions.logger.error('Error in v1_campaigns:', error);
     return res.status(500).json({
       error: 'Internal server error',
     });
@@ -265,7 +265,7 @@ export const private_v1_campaign_debug = async function (
 
     return res.status(200).type('html').send(html);
   } catch (error) {
-    logger.error('Error in v1_campaign_debug:', error);
+    functions.logger.error('Error in v1_campaign_debug:', error);
     const errorHTML = `
 <!DOCTYPE html>
 <html lang="en">

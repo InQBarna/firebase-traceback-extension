@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 import { findDynamicLinkByPath } from '../common/link-lookup';
 import {
   trackLinkAnalytics,
@@ -120,7 +120,7 @@ export const private_v1_get_campaign = async function (
       result: followLinkUrl,
     });
   } catch (error) {
-    logger.error('Error in v1_get_campaign:', error);
+    functions.logger.error('Error in v1_get_campaign:', error);
     return res.status(500).json({
       error: 'Internal server error',
     });

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as admin from 'firebase-admin';
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 import {
   TRACEBACK_COLLECTION,
   APIKEYS_DOC,
@@ -49,7 +49,7 @@ export async function validateApiKey(
     // API key is valid, continue to the next middleware/handler
     next();
   } catch (error) {
-    logger.error('Error validating API key:', error);
+    functions.logger.error('Error validating API key:', error);
     res.status(500).json({
       error: 'Internal server error',
       message: 'Failed to validate API key',

@@ -1,4 +1,4 @@
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 import { Request, Response } from 'express';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -293,7 +293,9 @@ async function buildMatchResponse(
   };
 }
 
-export const private_v1_postinstall_search_link = async (req: Request, res: Response): Promise<void> => {
+export const private_v1_postinstall_search_link = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res): Promise<void> => {
     if (req.method !== 'POST') {
       res.status(405).send('Method Not Allowed');
       return;
@@ -348,7 +350,7 @@ export const private_v1_postinstall_search_link = async (req: Request, res: Resp
       console.error('Error matching fingerprint:', err);
       res.status(500).json({ error: 'Internal Server Error' });
     }
-};
+  });
 
 async function removeFoundPostInstall(uuid: string): Promise<void> {
   // REMOVE
@@ -873,7 +875,7 @@ export const private_v1_preinstall_save_link = async (
 
     res.status(200).json({ success: true, installId });
   } catch (err) {
-    logger.error(
+    functions.logger.error(
       'Error saving device heuristics:',
       JSON.stringify({ error: err }),
     );
@@ -890,7 +892,7 @@ export async function oldInstallsMaintenance(db: Firestore): Promise<void> {
   try {
     await deleteOldInstalls(30, db);
   } catch (err) {
-    logger.error(
+    functions.logger.error(
       'Failed to delete old installs during this call',
       JSON.stringify({ error: err }),
     );

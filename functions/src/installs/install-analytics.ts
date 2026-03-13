@@ -1,4 +1,4 @@
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 
 /**
  * Types of analytics events for install attribution tracking
@@ -36,28 +36,28 @@ export function logPostInstallDebugInfo(
 
     switch (element.type) {
       case InstallAnalyticsType.ERROR:
-        logger.error(logMessage, logData);
+        functions.logger.error(logMessage, logData);
         break;
       case InstallAnalyticsType.HEURISTICS_MULTIPLE_MATCHES:
-        logger.info(logMessage, logData);
+        functions.logger.info(logMessage, logData);
         break;
       case InstallAnalyticsType.HEURISTICS_MULTIPLE_MATCHES_SAME_SCORE:
-        logger.warn(logMessage, logData);
+        functions.logger.warn(logMessage, logData);
         break;
       case InstallAnalyticsType.HEURISTICS_NOT_FOUND:
-        logger.info(logMessage, logData);
+        functions.logger.info(logMessage, logData);
         break;
       case InstallAnalyticsType.PASTEBOARD_MULTIPLE_MATCHES:
-        logger.warn(logMessage, logData);
+        functions.logger.warn(logMessage, logData);
         break;
       case InstallAnalyticsType.PASTEBOARD_NOT_FOUND:
-        logger.warn(logMessage, logData);
+        functions.logger.warn(logMessage, logData);
         break;
       case InstallAnalyticsType.DEBUG_HEURISTICS_FAILURE:
-        logger.warn(logMessage, logData);
+        functions.logger.warn(logMessage, logData);
         break;
       case InstallAnalyticsType.DEBUG_HEURISTICS_SUCCESS:
-        logger.info(logMessage, logData);
+        functions.logger.info(logMessage, logData);
         break;
     }
   }

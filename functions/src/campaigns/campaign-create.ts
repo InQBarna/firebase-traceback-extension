@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import * as Joi from 'joi';
@@ -142,7 +142,7 @@ export const private_v1_create_campaign = async function (
 
     return res.status(201).json(response);
   } catch (error) {
-    logger.error('Error in v1_create_campaign:', error);
+    functions.logger.error('Error in v1_create_campaign:', error);
     return res.status(500).json({
       error: 'Internal server error',
     });

@@ -1,5 +1,4 @@
-import { logger } from 'firebase-functions/v2';
-import { Request, Response } from 'express';
+import * as functions from 'firebase-functions/v1';
 import { config } from './config';
 import {
   privateInitialize,
@@ -13,9 +12,11 @@ export interface RetryInitializeResult {
   timestamp: string;
 }
 
-export const private_retry_initialize = async (_req: Request, res: Response): Promise<void> => {
+export const private_retry_initialize = functions
+  .region('europe-west1')
+  .https.onRequest(async (req, res): Promise<void> => {
     try {
-      logger.info(
+      functions.logger.info(
         '[RETRY_INITIALIZE] Starting manual initialization retry',
       );
 
@@ -23,7 +24,7 @@ export const private_retry_initialize = async (_req: Request, res: Response): Pr
       // This will attempt to create hosting, rewrites, and sample data
       const initResult = await privateInitialize(true, config, true);
 
-      logger.info('[RETRY_INITIALIZE] Initialization completed', {
+      functions.logger.info('[RETRY_INITIALIZE] Initialization completed', {
         siteAlreadyExisted: initResult.siteAlreadyExisted,
         siteCreatedViaAPI: initResult.siteCreatedViaAPI,
         siteName: initResult.siteName,
@@ -46,7 +47,7 @@ export const private_retry_initialize = async (_req: Request, res: Response): Pr
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      logger.error(
+      functions.logger.error(
         '[RETRY_INITIALIZE] Retry failed:',
         errorMessage,
         error,
@@ -60,4 +61,4 @@ export const private_retry_initialize = async (_req: Request, res: Response): Pr
 
       res.status(500).json(result);
     }
-};
+  });

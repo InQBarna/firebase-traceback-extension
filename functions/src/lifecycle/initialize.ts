@@ -1,7 +1,6 @@
 import axios from 'axios';
 import * as admin from 'firebase-admin';
-import { logger } from 'firebase-functions/v2';
-import { Timestamp } from 'firebase-admin/firestore';
+import * as functions from 'firebase-functions/v1';
 import { Config } from '../config';
 import { getSampleLink } from '../common/sample-links';
 import {
@@ -42,7 +41,7 @@ export const privateInitialize = async function (
   let siteName = '';
 
   try {
-    logger.info('[INIT] Starting extension initialization', {
+    functions.logger.info('[INIT] Starting extension initialization', {
       createRemoteHost,
       createSetupData,
       projectId: config.projectID,
@@ -52,12 +51,12 @@ export const privateInitialize = async function (
     const { FirebaseService } = await import('../firebase-service');
 
     // Initialize Firebase Service
-    logger.info('[INIT] Initializing Firebase Service Client');
+    functions.logger.info('[INIT] Initializing Firebase Service Client');
     const firebaseService = new FirebaseService();
     await firebaseService.init(config);
     const hostingSiteID = await firebaseService.getHostingSiteId();
     siteName = `https://${hostingSiteID}.web.app`;
-    logger.info('[INIT] Firebase Service Client initialized', {
+    functions.logger.info('[INIT] Firebase Service Client initialized', {
       siteID: hostingSiteID,
       siteName,
     });
@@ -93,7 +92,7 @@ export const privateInitialize = async function (
       // Cold start the instance
       await coldStart(hostingSiteID);
 
-      logger.info(
+      functions.logger.info(
         '[INIT] Extension initialization completed successfully',
       );
       return {
@@ -104,14 +103,14 @@ export const privateInitialize = async function (
         samples: samplesCreated,
       } as ExtensionInitializationResult;
     } else {
-      logger.info(
+      functions.logger.info(
         '[INIT] Extension initialization completed (no remote host - read-only check)',
       );
 
       let siteExists = false;
       const siteResult = await firebaseService.checkWebsiteExists();
       siteExists = siteResult?.alreadyConfigured ?? false;
-      logger.info(
+      functions.logger.info(
         '[INIT] Site existence check (' + hostingSiteID + ')',
         { siteExists },
       );
@@ -124,7 +123,7 @@ export const privateInitialize = async function (
       } as ExtensionInitializationResult;
     }
   } catch (initializeError) {
-    logger.error('[INIT] Unexpected initialization failure', {
+    functions.logger.error('[INIT] Unexpected initialization failure', {
       error:
         initializeError instanceof Error
           ? initializeError.message
@@ -155,15 +154,15 @@ async function setupHostingAndStaticResources(
   siteID: string,
 ): Promise<HostingSetupResult> {
   // Create a new website
-  logger.info('[INIT] Creating/checking new hosting site: ' + siteID);
+  functions.logger.info('[INIT] Creating/checking new hosting site: ' + siteID);
   const siteResult = await firebaseService.createHostingIfNoExisting();
-  logger.info('[INIT] Hosting site creation result', {
+  functions.logger.info('[INIT] Hosting site creation result', {
     alreadyConfigured: siteResult.alreadyConfigured,
     siteId: siteResult.siteId,
   });
 
   if (siteResult.alreadyConfigured) {
-    logger.info('[INIT] Site already configured, skipping setup');
+    functions.logger.info('[INIT] Site already configured, skipping setup');
     return {
       siteAlreadyExisted: true,
       success: true,
@@ -171,7 +170,7 @@ async function setupHostingAndStaticResources(
   }
 
   // Specify website config
-  logger.info('[INIT] Configuring hosting rewrites');
+  functions.logger.info('[INIT] Configuring hosting rewrites');
   const configPayload = {
     config: {
       appAssociation: 'NONE',
@@ -186,15 +185,15 @@ async function setupHostingAndStaticResources(
   };
 
   // Get the new version ID
-  logger.info('[INIT] Creating new hosting version');
+  functions.logger.info('[INIT] Creating new hosting version');
   const versionID = await firebaseService.createNewVersion(
     siteResult.siteId,
     configPayload,
   );
-  logger.info('[INIT] Hosting version created ' + versionID);
+  functions.logger.info('[INIT] Hosting version created ' + versionID);
 
   if (versionID === undefined) {
-    logger.warn(
+    functions.logger.warn(
       '[INIT] Could not create hosting version, site may already exist',
     );
     return {
@@ -206,11 +205,11 @@ async function setupHostingAndStaticResources(
   }
 
   // Finalize version
-  logger.info('[INIT] Finalizing hosting version');
+  functions.logger.info('[INIT] Finalizing hosting version');
   await firebaseService.finalizeVersion(siteID, versionID);
 
   // Deploy to hosting
-  logger.info('[INIT] Deploying hosting version');
+  functions.logger.info('[INIT] Deploying hosting version');
   await firebaseService.deployVersion(siteID, versionID);
 
   return {
@@ -224,14 +223,14 @@ async function setupHostingAndStaticResources(
  */
 async function coldStart(hostingSiteID: string): Promise<void> {
   const endpoint: string = `https://${hostingSiteID}.web.app/example`;
-  logger.info(
+  functions.logger.info(
     '[INIT] Cold starting the instance by calling "' + endpoint + '"',
   );
   try {
     await axios.get(endpoint);
-    logger.info('[INIT] Cold start request completed');
+    functions.logger.info('[INIT] Cold start request completed');
   } catch (error) {
-    logger.warn('[INIT] Cold start request failed:', error);
+    functions.logger.warn('[INIT] Cold start request failed:', error);
   }
 }
 
@@ -241,7 +240,7 @@ async function coldStart(hostingSiteID: string): Promise<void> {
  * @returns Object indicating which samples were created and which already existed
  */
 async function createSamples(): Promise<SamplesCreated> {
-  logger.info('[INIT:SAMPLES] Creating sample data');
+  functions.logger.info('[INIT:SAMPLES] Creating sample data');
 
   // Create sample dynamic link if needed
   const dynamicLinkResult = await createSampleDynamicLink();
@@ -249,7 +248,7 @@ async function createSamples(): Promise<SamplesCreated> {
   // Create default API key if needed
   const apiKeyResult = await createSampleAPIKey();
 
-  logger.info('[INIT:SAMPLES] Sample data creation completed', {
+  functions.logger.info('[INIT:SAMPLES] Sample data creation completed', {
     dynamicLinkAlreadyExisted: dynamicLinkResult.alreadyExisted,
     dynamicLinkCreated: dynamicLinkResult.created,
     apiKeyAlreadyExisted: apiKeyResult.alreadyExisted,
@@ -274,7 +273,7 @@ async function createSampleDynamicLink(): Promise<{
   alreadyExisted: boolean;
   created: boolean;
 }> {
-  logger.info('[INIT:SAMPLE_LINK] Starting sample link creation');
+  functions.logger.info('[INIT:SAMPLE_LINK] Starting sample link creation');
 
   try {
     const db = admin.firestore();
@@ -287,7 +286,7 @@ async function createSampleDynamicLink(): Promise<{
     const anyLinksQuery = await collection.limit(1).get();
 
     if (!anyLinksQuery.empty) {
-      logger.info(
+      functions.logger.info(
         '[INIT:SAMPLE_LINK] Dynamic links already exist, skipping',
       );
       return { alreadyExisted: true, created: false };
@@ -298,11 +297,11 @@ async function createSampleDynamicLink(): Promise<{
     // Create new sample link
     const docRef = await collection.add({
       ...sampleLink,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    logger.info('[INIT:SAMPLE_LINK] Created sample dynamic link', {
+    functions.logger.info('[INIT:SAMPLE_LINK] Created sample dynamic link', {
       docId: docRef.id,
       path: sampleLink.path,
     });
@@ -310,7 +309,7 @@ async function createSampleDynamicLink(): Promise<{
     return { alreadyExisted: false, created: true };
   } catch (error) {
     // Log error but don't fail the initialization
-    logger.error(
+    functions.logger.error(
       '[INIT:SAMPLE_LINK] Failed to create sample dynamic link',
       {
         error: error instanceof Error ? error.message : String(error),
@@ -331,7 +330,7 @@ async function createSampleAPIKey(): Promise<{
   alreadyExisted: boolean;
   created: boolean;
 }> {
-  logger.info('[INIT:API_KEY] Starting API key creation');
+  functions.logger.info('[INIT:API_KEY] Starting API key creation');
 
   try {
     const db = admin.firestore();
@@ -344,7 +343,7 @@ async function createSampleAPIKey(): Promise<{
     const anyKeysQuery = await collection.limit(1).get();
 
     if (!anyKeysQuery.empty) {
-      logger.info('[INIT:API_KEY] API keys already exist, skipping');
+      functions.logger.info('[INIT:API_KEY] API keys already exist, skipping');
       return { alreadyExisted: true, created: false };
     }
 
@@ -355,10 +354,10 @@ async function createSampleAPIKey(): Promise<{
       value: apiKeyValue,
       description:
         'This is the default api key created on install, use to reach endpoints v1_doctor, v1_campaigns, v1_campaign_debug',
-      createdAt: Timestamp.now(),
+      createdAt: admin.firestore.Timestamp.now(),
     });
 
-    logger.info('[INIT:API_KEY] Created default API key', {
+    functions.logger.info('[INIT:API_KEY] Created default API key', {
       docId: docRef.id,
       apiKey: apiKeyValue,
     });
@@ -366,7 +365,7 @@ async function createSampleAPIKey(): Promise<{
     return { alreadyExisted: false, created: true };
   } catch (error) {
     // Log error but don't fail the initialization
-    logger.error('[INIT:API_KEY] Failed to create sample API key', {
+    functions.logger.error('[INIT:API_KEY] Failed to create sample API key', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });

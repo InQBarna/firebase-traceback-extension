@@ -1,4 +1,4 @@
-import { https, tasks, logger } from 'firebase-functions/v2';
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as express from 'express';
 import * as path from 'path';
@@ -32,7 +32,7 @@ import { getSiteId } from './common/site-utils';
 admin.initializeApp();
 
 // ## Initializate extension
-exports.initialize = tasks.onTaskDispatched(async () => {
+exports.initialize = functions.tasks.taskQueue().onDispatch(async () => {
   const { getExtensions } = await import('firebase-admin/extensions');
   try {
     const initResult = await privateInitialize(true, config, true);
@@ -46,7 +46,7 @@ exports.initialize = tasks.onTaskDispatched(async () => {
       );
   } catch (error) {
     const errorMessage = error === Error ? (error as Error).message : error;
-    logger.error('Initialization error:', errorMessage);
+    functions.logger.error('Initialization error:', errorMessage);
 
     await getExtensions()
       .runtime()
@@ -71,7 +71,7 @@ app.post('/v1_postinstall_search_link', private_v1_postinstall_search_link);
 //
 
 // ## Set up Firebase Cloud Functions
-exports.dynamichostingcontent = https.onRequest(app);
+exports.dynamichostingcontent = functions.https.onRequest(app);
 
 // ## Error-handling middleware
 app.use(
@@ -82,7 +82,7 @@ app.use(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _next: express.NextFunction,
   ) => {
-    logger.error('Error:', err);
+    functions.logger.error('Error:', err);
     res.status(500).send('Internal Server Error');
   },
 );
@@ -144,7 +144,7 @@ app.use('*', async (req, res) => {
   try {
     return await link_preview(req, res, getSiteId(config), config);
   } catch (error) {
-    logger.error('Error when opening link preview: ', error);
+    functions.logger.error('Error when opening link preview: ', error);
     return res.status(500).send('Internal Server Error');
   }
 });
