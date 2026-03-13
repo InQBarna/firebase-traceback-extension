@@ -1,4 +1,5 @@
-import * as functions from 'firebase-functions/v1';
+import { logger } from 'firebase-functions/v2';
+import { Request, Response } from 'express';
 import { config } from './config';
 import {
   privateInitialize,
@@ -30,9 +31,7 @@ export interface DoctorResult {
   };
 }
 
-export const private_doctor = functions
-  .region('europe-west1')
-  .https.onRequest(async (req, res): Promise<void> => {
+export const private_doctor = async (req: Request, res: Response): Promise<void> => {
     try {
       // Get the actual host from the request (works with custom domains)
       const actualHost =
@@ -56,7 +55,7 @@ export const private_doctor = functions
 
       // Test Apple App Site Association (non-destructive)
       try {
-        functions.logger.info(
+        logger.info(
           'Testing Apple App Site Association:',
           appleAssociationURL,
         );
@@ -68,7 +67,7 @@ export const private_doctor = functions
         if (appleSiteAssociation.data && appleSiteAssociation.data.applinks) {
           appleAppSiteAssociationOk =
             appleSiteAssociation.data.applinks.length > 0;
-          functions.logger.info(
+          logger.info(
             'Apple App Site Association response:',
             appleSiteAssociation.data,
           );
@@ -78,7 +77,7 @@ export const private_doctor = functions
       } catch (error: any) {
         appleAssociationError =
           error.message || 'Failed to fetch Apple App Site Association';
-        functions.logger.warn(
+        logger.warn(
           'Apple App Site Association error:',
           appleAssociationError,
         );
@@ -86,19 +85,19 @@ export const private_doctor = functions
 
       // Attempt initialization (READ-ONLY - no creation/modification)
       try {
-        functions.logger.info('Attempting read-only initialization check...');
+        logger.info('Attempting read-only initialization check...');
         initializationAttempted = true;
 
         // Call with createRemoteHost=false and createSetupData=false for read-only check
         initResult = await privateInitialize(false, config, false);
 
-        functions.logger.info(
+        logger.info(
           'Read-only initialization completed successfully:',
           initResult,
         );
       } catch (error: any) {
         initializationError = error.message || 'Unknown initialization error';
-        functions.logger.error('Initialization failed:', initializationError);
+        logger.error('Initialization failed:', initializationError);
 
         // Provide fallback result
         initResult = {
@@ -132,12 +131,12 @@ export const private_doctor = functions
         },
       };
 
-      functions.logger.info('Doctor check completed:', doctorResult);
+      logger.info('Doctor check completed:', doctorResult);
       res.status(200).json(doctorResult);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      functions.logger.error('Doctor endpoint error:', errorMessage, error);
+      logger.error('Doctor endpoint error:', errorMessage, error);
 
       res.status(500).json({
         error: 'Doctor check failed',
@@ -145,4 +144,4 @@ export const private_doctor = functions
         timestamp: new Date().toISOString(),
       });
     }
-  });
+};

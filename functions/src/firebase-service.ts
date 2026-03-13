@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from 'axios';
-import { logger } from 'firebase-functions';
+import { logger } from 'firebase-functions/v2';
 
 import { GoogleAuth } from 'google-auth-library';
 
