@@ -15,9 +15,9 @@ export interface DoctorResult {
     projectID: string;
     extensionID: string;
     location: string;
-    iosTeamID: string;
-    iosBundleID: string;
-    androidBundleID: string;
+    iosTeamID?: string;
+    iosBundleID?: string;
+    androidBundleID?: string;
   };
   diagnostics: {
     siteId: string;

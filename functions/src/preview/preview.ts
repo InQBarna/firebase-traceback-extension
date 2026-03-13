@@ -9,6 +9,7 @@ import {
   getPlatformFromUserAgent,
 } from '../analytics/track-analytics';
 import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
+import { getPlayStoreInfo } from '../appstore/playstore';
 import { findDynamicLinkByPath } from '../common/link-lookup';
 
 export const link_preview = async function (
@@ -67,7 +68,7 @@ export const link_preview = async function (
           const refererDomain = new URL(referer as string).hostname;
           currentUrl.searchParams.set(utm_source, refererDomain);
           currentUrl.searchParams.set(utm_medium, 'referral_traceback');
-        } catch (e) {
+        } catch {
           // Invalid referer URL, ignore
         }
       }
@@ -128,11 +129,10 @@ async function getUnknownLinkResponse(
   config: Config,
   countryCode: string,
 ): Promise<string> {
-  // Get iOS AppStore appID
-  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
-    config.iosBundleID,
-    countryCode,
-  );
+  // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
+  const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
+    ? await getAppStoreInfo(config.iosBundleID, countryCode)
+    : await getPlayStoreInfo(config.androidBundleID, countryCode);
 
   return getDynamicLinkHTMLResponse(
     {
@@ -165,11 +165,10 @@ async function getFirestoreDynamicLinkInfo(
     throw { expired: true };
   }
 
-  // Get iOS AppStore appID using user's country code
-  const appStoreInfo: AppStoreInfo | undefined = await getAppStoreInfo(
-    config.iosBundleID,
-    countryCode,
-  );
+  // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
+  const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
+    ? await getAppStoreInfo(config.iosBundleID, countryCode)
+    : await getPlayStoreInfo(config.androidBundleID, countryCode);
 
   return {
     title: title,
@@ -204,8 +203,8 @@ async function getDynamicLinkHTMLResponse(
     description: linkInfo.description,
     thumbnail,
     appStoreID: linkInfo.appStoreInfo?.trackId ?? '',
-    androidBundleID: config.androidBundleID,
-    androidScheme: (config.androidScheme ?? '').toString(),
+    androidBundleID: config.androidBundleID ?? '',
+    androidScheme: config.androidScheme ?? '',
     appleAffiliateToken: linkInfo.appleAffiliateToken ?? '',
     appleCampaignText: linkInfo.appleCampaignText ?? '',
     appleMediaType: linkInfo.appleMediaType ?? '',

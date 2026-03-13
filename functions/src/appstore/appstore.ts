@@ -24,9 +24,11 @@ const appStoreCache: Record<
  * @returns AppStore info or undefined if not found
  */
 export async function getAppStoreInfo(
-  bundleId: string,
+  bundleId: string | undefined,
   country: string,
 ): Promise<AppStoreInfo | undefined> {
+  if (!bundleId) return undefined;
+
   const cacheKey = `${bundleId}_${country}`;
   const now = Date.now();
 

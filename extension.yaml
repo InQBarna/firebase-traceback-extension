@@ -120,32 +120,32 @@ params:
   - param: IOS_BUNDLE_ID
     label: Bundle ID of your iOS app
     description: >
-      Bundle ID of your iOS app.
+      Bundle ID of your iOS app. Leave empty if you don't have an iOS app.
     type: string
     example: com.mycompany.myapp
     validationRegex: ^([0-9a-zA-Z_.-]*)$
     validationErrorMessage: Invalid bundle ID format.
-    required: true
+    required: false
 
   - param: IOS_TEAM_ID
     label: Team ID of your iOS app
     description: >
-      Team ID from apple's appstoreconnect / Developer portal.
+      Team ID from apple's appstoreconnect / Developer portal. Leave empty if you don't have an iOS app.
     type: string
     example: ZZZZZZZZZZ
     validationRegex: ^([0-9A-Z]*)$
     validationErrorMessage: Invalid team ID format.
-    required: true
+    required: false
 
   - param: ANDROID_BUNDLE_ID
     label: Package name of your Android app
     description: >
-      Package name of your Android app
+      Package name of your Android app. Leave empty if you don't have an Android app.
     type: string
     example: com.mycompany.myapp
     validationRegex: ^([0-9a-zA-Z_.-]*)$
     validationErrorMessage: Invalid bundle ID format.
-    required: true
+    required: false
 
   - param: ANDROID_SHA
     label: Android SHA256 Fingerprint

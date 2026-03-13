@@ -87,37 +87,59 @@ export class FirebaseService {
     const hostingSiteID = this.getHostingSiteId();
 
     // Check if site is already configured via apple-app-site-association
-    try {
-      const url = `https://${hostingSiteID}.web.app/.well-known/apple-app-site-association`;
-      const expected = {
-        applinks: {
-          apps: [],
-          details: [
-            {
-              appID: `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
-              paths: ['*'],
-            },
-          ],
-        },
-        webcredentials: {
-          apps: [
-            `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
-          ],
-        },
-      };
-      const appSizeAssociationResp = await axios.get(url, {});
-      const matches =
-        JSON.stringify(appSizeAssociationResp.data) ===
-        JSON.stringify(expected);
-      if (matches) {
-        return {
-          alreadyCreated: true,
-          alreadyConfigured: true,
-          siteId: hostingSiteID,
+    const appleAssocUrl = `https://${hostingSiteID}.web.app/.well-known/apple-app-site-association`;
+    if (this.privateConfig.iosTeamID && this.privateConfig.iosBundleID) {
+      // iOS configured: check response matches expected content
+      try {
+        const expected = {
+          applinks: {
+            apps: [],
+            details: [
+              {
+                appID: `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
+                paths: ['*'],
+              },
+            ],
+          },
+          webcredentials: {
+            apps: [
+              `${this.privateConfig.iosTeamID}.${this.privateConfig.iosBundleID}`,
+            ],
+          },
         };
+        const appSizeAssociationResp = await axios.get(appleAssocUrl, {});
+        const matches =
+          JSON.stringify(appSizeAssociationResp.data) ===
+          JSON.stringify(expected);
+        if (matches) {
+          return {
+            alreadyCreated: true,
+            alreadyConfigured: true,
+            siteId: hostingSiteID,
+          };
+        }
+      } catch (_error) {
+        // Site not configured yet, continue checking
       }
-    } catch (_error) {
-      // Site not configured yet, continue checking
+    } else {
+      // iOS not configured: check endpoint returns our specific not-configured response
+      try {
+        await axios.get(appleAssocUrl, {});
+      } catch (error) {
+        if (
+          isAxiosError(error) &&
+          error.response?.status === 404 &&
+          error.response?.data?.includes(
+            'iOS app (iOSTeamID or iosBundleID) not configured',
+          )
+        ) {
+          return {
+            alreadyCreated: true,
+            alreadyConfigured: true,
+            siteId: hostingSiteID,
+          };
+        }
+      }
     }
 
     // Check if site exists via API

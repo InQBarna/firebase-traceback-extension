@@ -89,6 +89,10 @@ app.use(
 
 // ## iOS Association
 app.use('/.well-known/apple-app-site-association', async (req, res) => {
+  if (!config.iosTeamID || !config.iosBundleID) {
+    res.status(404).send('iOS app (iOSTeamID or iosBundleID) not configured');
+    return;
+  }
   await apple_app_size_association(
     req,
     res,
@@ -99,7 +103,10 @@ app.use('/.well-known/apple-app-site-association', async (req, res) => {
 
 // ## Android Association
 app.use('/.well-known/assetlinks.json', async (req, res) => {
-  // TODO: sha optional ??
+  if (!config.androidBundleID) {
+    res.status(404).send('Android app (androidBundleID) not configured');
+    return;
+  }
   await asset_links(req, res, config.androidBundleID, config.androidSHA ?? '');
 });
 
