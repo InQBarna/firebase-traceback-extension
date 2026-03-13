@@ -1,3 +1,14 @@
+## Version 0.7.0
+
+- New API endpoint to create links programmatically
+- Redesigned preview page with campaign images
+- Apple campaign info stored in database and shown on preview redirect
+- Platform dimension added to campaign analytics
+- Auto-redirect to desktop app store with Google Play / App Store buttons
+- Referral attribution forwarded in `referral_traceback` field when available
+- Fixed preview analytics being reported twice
+- UTM parameters forwarded in all campaign scenarios (improved)
+
 ## Version 0.6.0
 
 - Now utm_* parameters are forwared on all campaigns
