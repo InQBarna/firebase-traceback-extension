@@ -188,10 +188,7 @@ async function getDynamicLinkHTMLResponse(
   linkInfo: LinkInfo,
   config: Config,
 ): Promise<string> {
-  const thumbnail =
-    linkInfo.image.length > 0
-      ? linkInfo.image
-      : (linkInfo.appStoreInfo?.artworkUrl100 ?? '');
+  const thumbnail = linkInfo.image.length > 0 ? linkInfo.image : ''; // : (linkInfo.appStoreInfo?.artworkUrl100 ?? '');
   const appIcon = linkInfo.appStoreInfo?.artworkUrl100 ?? '';
 
   const pageData = {
