@@ -1,0 +1,10 @@
+functions/node_modules/
+functions/src/
+functions/test/
+functions/integration-tests/
+functions/scripts/
+functions/tsconfig*.json
+functions/jest.config.js
+firebase-debug.log
+CLAUDE.md
+e2e-install-extension.sh
