@@ -110,6 +110,7 @@ interface LinkInfo {
   appleCampaignText?: string;
   appleMediaType?: string;
   appleProviderId?: string;
+  clipboardTrackingEnabled: boolean;
 }
 
 async function getPreviewLinkResponse(
@@ -142,6 +143,9 @@ async function getUnknownLinkResponse(
       followLink: new URL('about:blank'),
       expires: new Date().getTime(),
       appStoreInfo: appStoreInfo,
+      // Clipboard tracking always enabled for programmatic links for now,
+      // pending a decision on whether a global flag could disable it.
+      clipboardTrackingEnabled: true,
     },
     config,
   );
@@ -181,6 +185,7 @@ async function getFirestoreDynamicLinkInfo(
     appleCampaignText: dynamicLink.appleCampaignText,
     appleMediaType: dynamicLink.appleMediaType,
     appleProviderId: dynamicLink.appleProviderId,
+    clipboardTrackingEnabled: dynamicLink.clipboardTrackingEnabled ?? true,
   };
 }
 
@@ -207,6 +212,7 @@ async function getDynamicLinkHTMLResponse(
     appleMediaType: linkInfo.appleMediaType ?? '',
     appleProviderId: linkInfo.appleProviderId ?? '',
     followLink: linkInfo.followLink?.toString() ?? '',
+    clipboardTrackingEnabled: linkInfo.clipboardTrackingEnabled,
   };
 
   const templatePath = path.join(__dirname, '../assets/html/index.html');

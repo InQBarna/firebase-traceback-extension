@@ -28,6 +28,7 @@ const createCampaignSchema = Joi.object({
   appleCampaignText: Joi.string().optional(),
   appleMediaType: Joi.string().optional(),
   appleProviderId: Joi.string().optional(),
+  clipboardTrackingEnabled: Joi.boolean().optional(),
 });
 
 /**
@@ -106,6 +107,8 @@ export const private_v1_create_campaign = async function (
       docData.appleMediaType = value.appleMediaType;
     if (value.appleProviderId !== undefined)
       docData.appleProviderId = value.appleProviderId;
+    if (value.clipboardTrackingEnabled !== undefined)
+      docData.clipboardTrackingEnabled = value.clipboardTrackingEnabled;
 
     // Convert expires ISO string to Firestore Timestamp
     if (value.expires) {
@@ -135,6 +138,8 @@ export const private_v1_create_campaign = async function (
       response.appleMediaType = value.appleMediaType;
     if (value.appleProviderId !== undefined)
       response.appleProviderId = value.appleProviderId;
+    if (value.clipboardTrackingEnabled !== undefined)
+      response.clipboardTrackingEnabled = value.clipboardTrackingEnabled;
 
     response.campaignUrl = `${getSiteName(config)}${value.path}`;
     response.createdAt = nowTimestamp.toDate().toISOString();

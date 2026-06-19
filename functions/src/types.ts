@@ -12,6 +12,7 @@ export default interface DynamicLink {
   appleCampaignText?: string; // Maps to 'ct' param
   appleMediaType?: string; // Maps to 'mt' param
   appleProviderId?: string; // Maps to 'pt' param
+  clipboardTrackingEnabled?: boolean; // When false, preview page redirects directly without clipboard copy
 }
 
 export interface APIKey {
