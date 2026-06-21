@@ -16,7 +16,13 @@ NC='\033[0m' # No Color
 
 # Extension metadata
 EXTENSION_NAME="traceback"
-EXTENSION_VERSION="0.5.0"
+# Default version read from extension.yaml; overridden by --extension-version flag
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/extension.yaml" ]; then
+    EXTENSION_VERSION=$(grep '^version:' "$SCRIPT_DIR/extension.yaml" | sed 's/version:[[:space:]]*//')
+else
+    EXTENSION_VERSION="0.7.0"
+fi
 
 # Function to print colored messages
 log_info() {
