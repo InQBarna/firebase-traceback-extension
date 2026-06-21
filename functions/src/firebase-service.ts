@@ -142,13 +142,15 @@ export class FirebaseService {
       }
     }
 
-    // Check if site exists via API
+    // Check if site exists via API, and if so whether the rewrite is already correct
     try {
       const getUrl = `${this.firebaseHostingURL}/projects/${this.privateConfig.projectID}/sites/${hostingSiteID}`;
       await axios.get(getUrl, { headers: this.jsonHeaders });
+
+      const rewriteConfigured = await this.checkLatestReleaseHasCorrectRewrite();
       return {
         alreadyCreated: true,
-        alreadyConfigured: false,
+        alreadyConfigured: rewriteConfigured,
         siteId: hostingSiteID,
       };
     } catch {
@@ -156,6 +158,44 @@ export class FirebaseService {
     }
 
     return null;
+  }
+
+  // Returns true if the latest hosted release has a catch-all rewrite pointing
+  // to this extension's dynamichostingcontent function in the correct region.
+  private async checkLatestReleaseHasCorrectRewrite(): Promise<boolean> {
+    try {
+      const hostingSiteID = this.getHostingSiteId();
+      const url = `${this.firebaseHostingURL}/sites/${hostingSiteID}/releases?pageSize=1`;
+      const result = await axios.get(url, { headers: this.jsonHeaders });
+      const releases = result.data?.releases as any[] | undefined;
+      if (!releases || releases.length === 0) return false;
+
+      const rewrites = releases[0]?.version?.config?.rewrites as any[] | undefined;
+      if (!rewrites || rewrites.length === 0) return false;
+
+      const expectedFn = `ext-${this.privateConfig.extensionID}-dynamichostingcontent`;
+      const expectedRegion = this.privateConfig.location;
+
+      const catchAll = rewrites.find(r => r.glob === '**' || r.glob === '**/*');
+      if (!catchAll) return false;
+
+      const fnMatches = catchAll.function === expectedFn;
+      const regionMatches = !catchAll.functionRegion || catchAll.functionRegion === expectedRegion;
+
+      logger.info('[FIREBASE_CLIENT] Rewrite check', {
+        found: catchAll.function,
+        expectedFn,
+        foundRegion: catchAll.functionRegion,
+        expectedRegion,
+        fnMatches,
+        regionMatches,
+      });
+
+      return fnMatches && regionMatches;
+    } catch (error) {
+      logger.warn('[FIREBASE_CLIENT] Could not check latest release rewrites', { error });
+      return false;
+    }
   }
 
   // Create new Hosting website

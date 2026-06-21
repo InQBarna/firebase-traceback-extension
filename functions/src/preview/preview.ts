@@ -205,6 +205,7 @@ async function getDynamicLinkHTMLResponse(
     description: linkInfo.description,
     thumbnail,
     appStoreID: linkInfo.appStoreInfo?.trackId ?? '',
+    iosBundleID: config.iosBundleID ?? '',
     androidBundleID: config.androidBundleID ?? '',
     androidScheme: config.androidScheme ?? '',
     appleAffiliateToken: linkInfo.appleAffiliateToken ?? '',
