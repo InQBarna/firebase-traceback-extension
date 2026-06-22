@@ -635,7 +635,7 @@ components:
           example: "https://your-project.web.app/promo-campaign"
         match_type:
           type: string
-          enum: [unique, heuristics, ambiguous, none]
+          enum: [unique, heuristics, ambiguous, none, intent]
           description: |
             Type of match found:
             - unique: Link uniquely matched via clipboard
