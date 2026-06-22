@@ -146,14 +146,16 @@ function formatDeepLinkId(
 
 /**
  * Save analytics for matched install
- * @param postInstallSearchLink - The matched link URL from post-install search
- * @param deep_link_id - The deep link ID
+ * @param postInstallSearchLink - The matched link URL (clipboard URL for real installs, intentLink for INTENT type)
+ * @param deep_link_id - The deep link ID (follow link)
+ * @param matchType - The match type from the post-install search result
  * @param sdkVersion - SDK version string (e.g., "ios/0.3.0", "android/1.2.3")
  * @param userAgent - The user-agent string for platform detection (fallback)
  */
 async function saveMatchAnalytics(
   postInstallSearchLink: string | undefined,
   deep_link_id: string,
+  matchType: string,
   sdkVersion: string | undefined,
   userAgent: string | undefined,
 ): Promise<void> {
@@ -161,8 +163,18 @@ async function saveMatchAnalytics(
   const platform =
     getPlatformFromSdkVersion(sdkVersion) ??
     getPlatformFromUserAgent(userAgent);
-  // Track install analytics for the matched link
-  if (postInstallSearchLink) {
+
+  if (matchType === MatchType.INTENT) {
+    // INTENT: app was opened directly via campaign link (no prior install record matched).
+    // postInstallSearchLink is the traceback URL (intentLink), which is the correct URL to track.
+    const trackUrl = postInstallSearchLink ?? deep_link_id;
+    await trackLinkAnalyticsByUrl(
+      trackUrl,
+      AnalyticsEventType.APP_FIRST_OPEN_INTENT,
+      platform,
+    );
+  } else if (postInstallSearchLink) {
+    // Real install matched via clipboard or heuristics
     await trackLinkAnalyticsByUrl(
       postInstallSearchLink,
       AnalyticsEventType.APP_FIRST_OPEN_INSTALL,
@@ -334,6 +346,7 @@ export const private_v1_postinstall_search_link = functions
         await saveMatchAnalytics(
           resolvedResult.matchedLink,
           resolvedResult.partialMatchResponse.deep_link_id,
+          resolvedResult.partialMatchResponse.match_type,
           fingerprint.sdkVersion,
           userAgent,
         );

@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions/v1';
 import {
   TRACEBACK_COLLECTION,
   DYNAMICLINKS_DOC,
@@ -61,6 +62,7 @@ export async function trackLinkAnalytics(
     .collection(ANALYTICS_COLLECTION)
     .doc(today);
 
+  functions.logger.info(`Tracking ${eventType} for link ${linkId} on ${today} (platform: ${platform})`);
   try {
     await db.runTransaction(async (transaction) => {
       const doc = await transaction.get(analyticsDocRef);
@@ -90,9 +92,10 @@ export async function trackLinkAnalytics(
         transaction.set(analyticsDocRef, newAnalytics);
       }
     });
+    functions.logger.info(`Successfully tracked ${eventType} for link ${linkId}`);
   } catch (error) {
     // Log error but don't fail the operation
-    console.error(`Error tracking ${eventType} for link ${linkId}:`, error);
+    functions.logger.error(`Error tracking ${eventType} for link ${linkId}:`, error);
   }
 }
 
