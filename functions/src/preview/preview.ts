@@ -59,7 +59,17 @@ export const link_preview = async function (
   const countryCode = 'es';
   console.log('Link result:', linkResult);
   if (!linkResult) {
-    source = await getUnknownLinkResponse(config, countryCode, socialOverrides);
+    // `cte` only applies here, where there's no Firestore campaign whose
+    // owner-set clipboardTrackingEnabled value could be overridden. It must
+    // never be read on the campaign-found branch below.
+    const clipboardTrackingOverride =
+      req.query.cte === 'false' ? false : undefined;
+    source = await getUnknownLinkResponse(
+      config,
+      countryCode,
+      socialOverrides,
+      clipboardTrackingOverride,
+    );
   } else {
     const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
@@ -161,6 +171,7 @@ async function getUnknownLinkResponse(
   config: Config,
   countryCode: string,
   socialOverrides: SocialOverrides,
+  clipboardTrackingOverride?: boolean,
 ): Promise<string> {
   // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
   const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
@@ -175,9 +186,9 @@ async function getUnknownLinkResponse(
       followLink: new URL('about:blank'),
       expires: new Date().getTime(),
       appStoreInfo: appStoreInfo,
-      // Clipboard tracking always enabled for programmatic links for now,
-      // pending a decision on whether a global flag could disable it.
-      clipboardTrackingEnabled: true,
+      // Defaults to true; `cte=false` in the URL can opt out for links with
+      // no Firestore campaign record (see caller).
+      clipboardTrackingEnabled: clipboardTrackingOverride ?? true,
     },
     config,
     socialOverrides,
