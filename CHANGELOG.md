@@ -10,6 +10,7 @@
 - UTM parameters forwarded in all campaign scenarios (improved)
 - Clipboard and unique match defaults to not used unless activaed inside a campaign
 - Preview page translated to 11 languages
+- Preview page showing the right store information given user locale
 
 ## Version 0.6.0
 
