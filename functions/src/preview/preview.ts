@@ -12,6 +12,15 @@ import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
 import { getPlayStoreInfo } from '../appstore/playstore';
 import { findDynamicLinkByPath } from '../common/link-lookup';
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export const link_preview = async function (
   req: Request,
   res: Response,
@@ -28,6 +37,16 @@ export const link_preview = async function (
   console.log('Link path:', linkPath);
   const linkResult = await findDynamicLinkByPath(linkPath);
 
+  // st/sd/si (legacy Firebase Dynamic Links social tag params) override the
+  // stored title/description/image for this URL only. Unlike the Apple
+  // campaign params, these don't carry attribution/revenue, so it's safe to
+  // accept them directly from the query string.
+  const socialOverrides: SocialOverrides = {
+    title: typeof req.query.st === 'string' ? req.query.st : undefined,
+    description: typeof req.query.sd === 'string' ? req.query.sd : undefined,
+    image: typeof req.query.si === 'string' ? req.query.si : undefined,
+  };
+
   const host =
     req.headers['x-forwarded-host'] ?? req.headers.host ?? siteId + '.web.app';
   const fullUrl = `${req.protocol}://${host}${req.originalUrl}`;
@@ -40,7 +59,7 @@ export const link_preview = async function (
   const countryCode = 'es';
   console.log('Link result:', linkResult);
   if (!linkResult) {
-    source = await getUnknownLinkResponse(config, countryCode);
+    source = await getUnknownLinkResponse(config, countryCode, socialOverrides);
   } else {
     const dynamicLink = linkResult.data;
     const currentUrl = new URL(fullUrl);
@@ -92,7 +111,12 @@ export const link_preview = async function (
       res.setHeader('Cache-Control', 'no-cache');
       return res.redirect(302, redirectUrl.toString());
     }
-    source = await getPreviewLinkResponse(dynamicLink, config, countryCode);
+    source = await getPreviewLinkResponse(
+      dynamicLink,
+      config,
+      countryCode,
+      socialOverrides,
+    );
   }
 
   res.setHeader('Cache-Control', 'no-cache');
@@ -113,22 +137,30 @@ interface LinkInfo {
   clipboardTrackingEnabled: boolean;
 }
 
+interface SocialOverrides {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
 async function getPreviewLinkResponse(
   dynamicLink: DynamicLink,
   config: Config,
   countryCode: string,
+  socialOverrides: SocialOverrides,
 ): Promise<string> {
   const linkInfo = await getFirestoreDynamicLinkInfo(
     dynamicLink,
     config,
     countryCode,
   );
-  return getDynamicLinkHTMLResponse(linkInfo, config);
+  return getDynamicLinkHTMLResponse(linkInfo, config, socialOverrides);
 }
 
 async function getUnknownLinkResponse(
   config: Config,
   countryCode: string,
+  socialOverrides: SocialOverrides,
 ): Promise<string> {
   // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
   const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
@@ -148,6 +180,7 @@ async function getUnknownLinkResponse(
       clipboardTrackingEnabled: true,
     },
     config,
+    socialOverrides,
   );
 }
 
@@ -192,8 +225,13 @@ async function getFirestoreDynamicLinkInfo(
 async function getDynamicLinkHTMLResponse(
   linkInfo: LinkInfo,
   config: Config,
+  socialOverrides: SocialOverrides = {},
 ): Promise<string> {
-  const thumbnail = linkInfo.image.length > 0 ? linkInfo.image : ''; // : (linkInfo.appStoreInfo?.artworkUrl100 ?? '');
+  const title = socialOverrides.title || linkInfo.title;
+  const description = socialOverrides.description || linkInfo.description;
+  const image = socialOverrides.image || linkInfo.image;
+
+  const thumbnail = image.length > 0 ? image : ''; // : (linkInfo.appStoreInfo?.artworkUrl100 ?? '');
   const appIcon = linkInfo.appStoreInfo?.artworkUrl100 ?? '';
 
   const pageData = {
@@ -201,8 +239,8 @@ async function getDynamicLinkHTMLResponse(
     appIcon,
     appDescription:
       linkInfo.appStoreInfo?.description.replace(/\n/g, '<br/>') ?? '',
-    title: linkInfo.title,
-    description: linkInfo.description,
+    title,
+    description,
     thumbnail,
     appStoreID: linkInfo.appStoreInfo?.trackId ?? '',
     iosBundleID: config.iosBundleID ?? '',
@@ -219,13 +257,20 @@ async function getDynamicLinkHTMLResponse(
   const templatePath = path.join(__dirname, '../assets/html/index.html');
   const html = fs.readFileSync(templatePath, { encoding: 'utf-8' });
 
+  // title/description/thumbnail may come directly from the st/sd/si query
+  // params (see socialOverrides), so they must be HTML-escaped before being
+  // interpolated into <title>/<meta content="..."> to prevent markup/attribute
+  // injection from a crafted URL.
   return html
-    .replaceAll('{{title}}', linkInfo.title)
-    .replaceAll('{{description}}', linkInfo.description)
-    .replaceAll('{{thumbnail}}', thumbnail)
-    .replaceAll('{{app_icon}}', appIcon)
+    .replaceAll('{{title}}', escapeHtml(title))
+    .replaceAll('{{description}}', escapeHtml(description))
+    .replaceAll('{{thumbnail}}', escapeHtml(thumbnail))
+    .replaceAll('{{app_icon}}', escapeHtml(appIcon))
     .replace(
       '<!-- __DATA__ -->',
-      `<script>window.__DATA__=${JSON.stringify(pageData)}</script>`,
+      // Escape '<' so a title/description containing "</script>" can't break
+      // out of this tag — \u003c is valid both in JSON strings and in the JS
+      // source that assigns window.__DATA__.
+      `<script>window.__DATA__=${JSON.stringify(pageData).replace(/</g, '\\u003c')}</script>`,
     );
 }

@@ -9,6 +9,7 @@
 - Fixed preview analytics being reported twice
 - UTM parameters forwarded in all campaign scenarios (improved)
 - Clipboard and unique match defaults to not used unless activaed inside a campaign
+- Preview page translated to 11 languages
 
 ## Version 0.6.0
 
