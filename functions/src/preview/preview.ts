@@ -11,6 +11,7 @@ import {
 import { AppStoreInfo, getAppStoreInfo } from '../appstore/appstore';
 import { getPlayStoreInfo } from '../appstore/playstore';
 import { findDynamicLinkByPath } from '../common/link-lookup';
+import { resolveLocale, ResolvedLocale } from '../common/locale';
 
 function escapeHtml(value: string): string {
   return value
@@ -56,7 +57,11 @@ export const link_preview = async function (
 
   // If not found, return default response
   let source: string;
-  const countryCode = 'es';
+  // Best-guess storefront from the visitor's browser locale; getAppStoreInfo/
+  // getPlayStoreInfo fall back to the US region if the app isn't found there
+  // (see appstore.ts/playstore.ts) — we have no way to know which countries
+  // an app is actually published in.
+  const locale = resolveLocale(req.headers['accept-language']);
   console.log('Link result:', linkResult);
   if (!linkResult) {
     // `cte`/`ofl` only apply here, where there's no Firestore campaign whose
@@ -68,7 +73,7 @@ export const link_preview = async function (
       typeof req.query.ofl === 'string' ? req.query.ofl : undefined;
     source = await getUnknownLinkResponse(
       config,
-      countryCode,
+      locale,
       socialOverrides,
       clipboardTrackingOverride,
       otherFallbackLinkOverride,
@@ -127,7 +132,7 @@ export const link_preview = async function (
     source = await getPreviewLinkResponse(
       dynamicLink,
       config,
-      countryCode,
+      locale,
       socialOverrides,
     );
   }
@@ -160,28 +165,28 @@ interface SocialOverrides {
 async function getPreviewLinkResponse(
   dynamicLink: DynamicLink,
   config: Config,
-  countryCode: string,
+  locale: ResolvedLocale,
   socialOverrides: SocialOverrides,
 ): Promise<string> {
   const linkInfo = await getFirestoreDynamicLinkInfo(
     dynamicLink,
     config,
-    countryCode,
+    locale,
   );
   return getDynamicLinkHTMLResponse(linkInfo, config, socialOverrides);
 }
 
 async function getUnknownLinkResponse(
   config: Config,
-  countryCode: string,
+  locale: ResolvedLocale,
   socialOverrides: SocialOverrides,
   clipboardTrackingOverride?: boolean,
   otherFallbackLinkOverride?: string,
 ): Promise<string> {
   // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
   const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
-    ? await getAppStoreInfo(config.iosBundleID, countryCode)
-    : await getPlayStoreInfo(config.androidBundleID, countryCode);
+    ? await getAppStoreInfo(config.iosBundleID, locale.country)
+    : await getPlayStoreInfo(config.androidBundleID, locale.language, locale.country);
 
   return getDynamicLinkHTMLResponse(
     {
@@ -209,7 +214,7 @@ async function getUnknownLinkResponse(
 async function getFirestoreDynamicLinkInfo(
   dynamicLink: DynamicLink,
   config: Config,
-  countryCode: string,
+  locale: ResolvedLocale,
 ): Promise<LinkInfo> {
   // Gather metadata
   const title = dynamicLink.title || '';
@@ -225,8 +230,8 @@ async function getFirestoreDynamicLinkInfo(
 
   // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
   const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
-    ? await getAppStoreInfo(config.iosBundleID, countryCode)
-    : await getPlayStoreInfo(config.androidBundleID, countryCode);
+    ? await getAppStoreInfo(config.iosBundleID, locale.country)
+    : await getPlayStoreInfo(config.androidBundleID, locale.language, locale.country);
 
   return {
     title: title,
