@@ -762,6 +762,15 @@ components:
           type: string
           description: Apple provider ID (maps to 'pt' App Store param)
           example: "provider456"
+        otherFallbackLink:
+          type: string
+          format: uri
+          description: Fallback destination used when no app/store route applies (maps to legacy FDL 'ofl' param)
+          example: "https://example.com/fallback"
+        clipboardTrackingEnabled:
+          type: boolean
+          description: Whether the preview page copies a unique URL to the clipboard before redirecting (default true)
+          example: true
 
     CreateCampaignResponse:
       type: object
@@ -797,6 +806,31 @@ components:
           format: date-time
           description: Expiration date as ISO string
           example: "2025-12-31T23:59:59.000Z"
+        appleAffiliateToken:
+          type: string
+          description: Apple affiliate token (maps to 'at' App Store param)
+          example: "affiliate123"
+        appleCampaignText:
+          type: string
+          description: Apple campaign text (maps to 'ct' App Store param)
+          example: "summer_campaign"
+        appleMediaType:
+          type: string
+          description: Apple media type (maps to 'mt' App Store param)
+          example: "8"
+        appleProviderId:
+          type: string
+          description: Apple provider ID (maps to 'pt' App Store param)
+          example: "provider456"
+        otherFallbackLink:
+          type: string
+          format: uri
+          description: Fallback destination used when no app/store route applies (maps to legacy FDL 'ofl' param)
+          example: "https://example.com/fallback"
+        clipboardTrackingEnabled:
+          type: boolean
+          description: Whether the preview page copies a unique URL to the clipboard before redirecting (default true)
+          example: true
         campaignUrl:
           type: string
           format: uri

@@ -28,6 +28,7 @@ const createCampaignSchema = Joi.object({
   appleCampaignText: Joi.string().optional(),
   appleMediaType: Joi.string().optional(),
   appleProviderId: Joi.string().optional(),
+  otherFallbackLink: Joi.string().uri().optional(),
   clipboardTrackingEnabled: Joi.boolean().optional(),
 });
 
@@ -107,6 +108,8 @@ export const private_v1_create_campaign = async function (
       docData.appleMediaType = value.appleMediaType;
     if (value.appleProviderId !== undefined)
       docData.appleProviderId = value.appleProviderId;
+    if (value.otherFallbackLink !== undefined)
+      docData.otherFallbackLink = value.otherFallbackLink;
     if (value.clipboardTrackingEnabled !== undefined)
       docData.clipboardTrackingEnabled = value.clipboardTrackingEnabled;
 
@@ -138,6 +141,8 @@ export const private_v1_create_campaign = async function (
       response.appleMediaType = value.appleMediaType;
     if (value.appleProviderId !== undefined)
       response.appleProviderId = value.appleProviderId;
+    if (value.otherFallbackLink !== undefined)
+      response.otherFallbackLink = value.otherFallbackLink;
     if (value.clipboardTrackingEnabled !== undefined)
       response.clipboardTrackingEnabled = value.clipboardTrackingEnabled;
 

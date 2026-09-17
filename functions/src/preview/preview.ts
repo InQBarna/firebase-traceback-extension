@@ -59,16 +59,19 @@ export const link_preview = async function (
   const countryCode = 'es';
   console.log('Link result:', linkResult);
   if (!linkResult) {
-    // `cte` only applies here, where there's no Firestore campaign whose
-    // owner-set clipboardTrackingEnabled value could be overridden. It must
-    // never be read on the campaign-found branch below.
+    // `cte`/`ofl` only apply here, where there's no Firestore campaign whose
+    // owner-set clipboardTrackingEnabled/otherFallbackLink could be
+    // overridden. They must never be read on the campaign-found branch below.
     const clipboardTrackingOverride =
       req.query.cte === 'false' ? false : undefined;
+    const otherFallbackLinkOverride =
+      typeof req.query.ofl === 'string' ? req.query.ofl : undefined;
     source = await getUnknownLinkResponse(
       config,
       countryCode,
       socialOverrides,
       clipboardTrackingOverride,
+      otherFallbackLinkOverride,
     );
   } else {
     const dynamicLink = linkResult.data;
@@ -144,6 +147,7 @@ interface LinkInfo {
   appleCampaignText?: string;
   appleMediaType?: string;
   appleProviderId?: string;
+  otherFallbackLink?: string;
   clipboardTrackingEnabled: boolean;
 }
 
@@ -172,6 +176,7 @@ async function getUnknownLinkResponse(
   countryCode: string,
   socialOverrides: SocialOverrides,
   clipboardTrackingOverride?: boolean,
+  otherFallbackLinkOverride?: string,
 ): Promise<string> {
   // Fetch app metadata: prefer App Store (iOS), fall back to Play Store (Android)
   const appStoreInfo: AppStoreInfo | undefined = config.iosBundleID
@@ -183,12 +188,18 @@ async function getUnknownLinkResponse(
       title: appStoreInfo?.trackName ?? '',
       description: appStoreInfo?.description ?? '',
       image: appStoreInfo?.artworkUrl100 ?? '',
-      followLink: new URL('about:blank'),
+      // No followLink here by definition — this is the "unknown link"
+      // fallback, so leave it undefined rather than a placeholder URL (see
+      // getFirestoreDynamicLinkInfo for why that matters).
+      followLink: undefined,
       expires: new Date().getTime(),
       appStoreInfo: appStoreInfo,
       // Defaults to true; `cte=false` in the URL can opt out for links with
       // no Firestore campaign record (see caller).
       clipboardTrackingEnabled: clipboardTrackingOverride ?? true,
+      // `ofl` in the URL can set this for links with no Firestore campaign
+      // record (see caller). No default — absent unless provided.
+      otherFallbackLink: otherFallbackLinkOverride,
     },
     config,
     socialOverrides,
@@ -205,7 +216,6 @@ async function getFirestoreDynamicLinkInfo(
   const description = dynamicLink.description || '';
   const image = dynamicLink.image || '';
 
-  const followLink = dynamicLink.followLink || 'about:blank';
   const expires = dynamicLink.expires;
 
   const expiresNumber: number = expires?.toMillis() as number;
@@ -222,13 +232,20 @@ async function getFirestoreDynamicLinkInfo(
     title: title,
     description: description,
     image: image,
-    followLink: new URL(followLink),
+    // Undefined (not a placeholder URL) when there's no real followLink, so
+    // pageData.followLink downstream is correctly falsy and the client-side
+    // fallback chain can reach otherFallbackLink instead of navigating to a
+    // sentinel URL. See getUnknownLinkResponse for the same reasoning.
+    followLink: dynamicLink.followLink
+      ? new URL(dynamicLink.followLink)
+      : undefined,
     expires: expiresNumber,
     appStoreInfo: appStoreInfo,
     appleAffiliateToken: dynamicLink.appleAffiliateToken,
     appleCampaignText: dynamicLink.appleCampaignText,
     appleMediaType: dynamicLink.appleMediaType,
     appleProviderId: dynamicLink.appleProviderId,
+    otherFallbackLink: dynamicLink.otherFallbackLink,
     clipboardTrackingEnabled: dynamicLink.clipboardTrackingEnabled ?? true,
   };
 }
@@ -261,6 +278,7 @@ async function getDynamicLinkHTMLResponse(
     appleCampaignText: linkInfo.appleCampaignText ?? '',
     appleMediaType: linkInfo.appleMediaType ?? '',
     appleProviderId: linkInfo.appleProviderId ?? '',
+    otherFallbackLink: linkInfo.otherFallbackLink ?? '',
     followLink: linkInfo.followLink?.toString() ?? '',
     clipboardTrackingEnabled: linkInfo.clipboardTrackingEnabled,
   };
