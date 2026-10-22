@@ -1,3 +1,7 @@
+## Version 0.7.1
+
+- Cloud Functions runtime upgraded from Node.js 20 to Node.js 22
+
 ## Version 0.7.0
 
 - New API endpoint to create links programmatically

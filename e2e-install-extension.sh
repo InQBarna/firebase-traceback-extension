@@ -21,7 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -f "$SCRIPT_DIR/extension.yaml" ]; then
     EXTENSION_VERSION=$(grep '^version:' "$SCRIPT_DIR/extension.yaml" | sed 's/version:[[:space:]]*//')
 else
-    EXTENSION_VERSION="0.7.0"
+    EXTENSION_VERSION="0.7.1"
 fi
 
 # Function to print colored messages

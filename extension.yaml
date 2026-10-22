@@ -1,5 +1,5 @@
 name: traceback
-version: 0.7.0
+version: 0.7.1
 specVersion: v1beta
 
 displayName: TraceBack - Dynamic Links Replacement
@@ -41,7 +41,7 @@ resources:
     properties:
       location: ${LOCATION}
       taskQueueTrigger: {}
-      runtime: 'nodejs20'
+      runtime: 'nodejs22'
 
   - name: dynamichostingcontent
     type: firebaseextensions.v1beta.function
@@ -50,7 +50,7 @@ resources:
     properties:
       location: ${LOCATION}
       httpsTrigger: {}
-      runtime: 'nodejs20'
+      runtime: 'nodejs22'
       minInstances: ${MIN_INSTANCES}
 
 lifecycleEvents:
